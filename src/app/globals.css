@@ -3783,3 +3783,12 @@ label small {
   .report-shift-meta b { margin-inline-start: 0; }
   .report-progress { font-size: 12px; gap: 8px 16px; }
 }
+
+.button.delete-confirm {
+  background: #b42332;
+  color: #fff;
+  border: 1px solid #b42332;
+}
+.button.delete-confirm:hover:not(:disabled) {
+  background: #941c28;
+}

@@ -58,6 +58,7 @@ const fmtDate = (date: string, options: Intl.DateTimeFormatOptions) =>
     ...options,
   }).format(new Date(`${date}T12:00:00Z`));
 type Confirm = {
+  destructive?: boolean;
   title: string;
   description: string;
   action: string;
@@ -1096,7 +1097,7 @@ export function ScheduleApp() {
               ביטול
             </button>
             <button
-              className="button primary"
+              className={`button ${confirm.destructive ? "delete-confirm" : "primary"}`}
               disabled={busy}
               onClick={async () => {
                 try {
