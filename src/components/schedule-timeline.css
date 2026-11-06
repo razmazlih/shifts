@@ -100,3 +100,14 @@
 /* Clip rounded panel corners without creating an inner scrolling ancestor. */
 .schedule-panel:has(.schedule-timeline) { overflow:clip; }
 .timeline-heading { box-shadow:0 2px 4px #244d3812; }
+.timeline-view-actions { display:flex; align-items:center; gap:8px; }
+.timeline-fit-toggle { border:1px solid #ccddd4; border-radius:8px; padding:8px 12px; background:#e9f3ec; color:#245e4d; }
+.timeline-fit .timeline-heading { height:60px; gap:4px; }
+.timeline-fit .timeline-toolbar { padding:8px 14px; min-height:44px; }
+.timeline-fit .timeline-note { font-size:10px; line-height:15px; padding:7px 12px; }
+.timeline-fit .timeline-scroll { padding-bottom:12px; }
+.timeline-fit .timeline-shared-row .shift-card { padding:5px 7px; gap:3px; }
+.timeline-fit .timeline-shared-row .shift-title { font-size:13px; line-height:17px; }
+.timeline-fit .timeline-shared-row .shift-group { font-size:9px; line-height:11px; }
+@media (max-width:1100px) { .timeline-fit-toggle { display:none; } }
+@media print { .timeline-view-actions { display:none; } }

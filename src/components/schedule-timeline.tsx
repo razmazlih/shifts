@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Plus } from "lucide-react";
 import { today } from "@/lib/time";
 import { buildTimelineBands, getTimelineRange, layoutTimelineShifts, summarizeTimelineShifts } from "@/lib/timeline";
@@ -17,6 +17,16 @@ export function ScheduleTimeline({ dates, shifts, admin, group, renderCard, onAd
 }) {
   const [chosenDate, setChosenDate] = useState(today());
   const [dayView, setDayView] = useState(false);
+  const [fitScreen, setFitScreen] = useState(true);
+  const [viewport, setViewport] = useState({ width: 0, height: 900 });
+  const boardRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const measure = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+  const compact = fitScreen && !dayView && viewport.width > 1100;
   const activeDate = dates.includes(chosenDate) ? chosenDate : dates[0];
   const summaries = summarizeTimelineShifts(shifts);
   const envelopes = summaries.map(item => ({ ...item.shift,
@@ -25,18 +35,29 @@ export function ScheduleTimeline({ dates, shifts, admin, group, renderCard, onAd
   }));
   const range = getTimelineRange(envelopes);
   const bands = buildTimelineBands(envelopes);
-  const height = bands.reduce((sum, band) => sum + band.height, 0);
+  const naturalHeight = bands.reduce((sum, band) => sum + band.height, 0);
+  const height = compact ? Math.max(220, viewport.height - 170) : naturalHeight;
+  const scale = height / naturalHeight;
   const position = (minute: number) => {
     const band = bands.find(b => minute >= b.start && minute < b.end);
-    return band ? band.top + (minute - band.start) / (band.end - band.start) * band.height : height;
+    return band ? (band.top + (minute - band.start) / (band.end - band.start) * band.height) * scale : height;
   };
   const ticks = [...new Set([range.end, ...bands.map(b => b.start), ...Array.from({ length: (range.end - range.start) / 60 + 1 }, (_, i) => range.start + i * 60)])].sort((a,b) => a-b);
-  const hours = ticks.filter((minute, index) => index === 0 || position(minute) - position(ticks[index - 1]) >= 18 || bands.some(b => b.start === minute));
+  const hours = ticks.filter((minute, index) => {
+    if (!compact) return index === 0 || position(minute) - position(ticks[index - 1]) >= 18 || bands.some(b => b.start === minute);
+    return minute === range.start || minute === range.end || (minute % 120 === 0 && position(minute) - position(range.start) >= 18 && position(range.end) - position(minute) >= 18);
+  });
   const teams = (["MANAGERS", "PATROL"] as Group[]).filter(team => group === "ALL" || team === group);
-  return <section className={`schedule-timeline ${dayView ? "timeline-day-view" : ""}`} aria-label="לוח משמרות לפי שעות">
+  return <section ref={boardRef} className={`schedule-timeline ${compact ? "timeline-fit" : ""} ${dayView ? "timeline-day-view" : ""}`} aria-label="לוח משמרות לפי שעות">
     <div className="timeline-toolbar">
       <span>מי עובד ומתי · לחצו על שם לפירוט השיבוצים</span>
+      <div className="timeline-view-actions">
+      {!dayView && <button className="timeline-fit-toggle" aria-pressed={fitScreen} onClick={() => {
+        setFitScreen(value => !value);
+        requestAnimationFrame(() => boardRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }));
+      }}>{fitScreen ? "תצוגה מרווחת" : "התאמה למסך"}</button>}
       <button className="timeline-view-toggle" onClick={() => setDayView(!dayView)}>{dayView ? "הצגת כל השבוע" : "מיקוד ביום אחד"}</button>
+      </div>
     </div>
     <nav className="timeline-days" aria-label="בחירת יום בלוח">
       {dates.map(date => <button key={date} aria-pressed={date === activeDate} onClick={() => setChosenDate(date)}>
