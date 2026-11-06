@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  EMPLOYEE
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String
+  passwordHash String
+  role         Role          @default(EMPLOYEE)
+  employeeId   String?       @unique
+  employee     Employee?     @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  sessions     Session[]
+  audits       Audit[]
+  publications Publication[]
+  createdAt    DateTime      @default(now())
+}
+
+model Employee {
+  id             String   @id @default(cuid())
+  name           String
+  email          String?  @unique
+  active         Boolean  @default(true)
+  groups         String[]
+  maxWeeklyHours Float    @default(42)
+  availability   Json     @default("[]")
+  timeOff        Json     @default("[]")
+  preferredDays  Int[]
+  user           User?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+model LoginAttempt {
+  key         String   @id
+  attempts    Int      @default(0)
+  windowStart DateTime @default(now())
+}
+
+model Week {
+  weekStart         String        @id
+  revision          Int           @default(0)
+  shifts            Json          @default("[]")
+  publishedRevision Int?
+  publishedAt       DateTime?
+  publications      Publication[]
+  audits            Audit[]
+  updatedAt         DateTime      @updatedAt
+}
+
+model Publication {
+  id        String   @id @default(cuid())
+  weekStart String
+  week      Week     @relation(fields: [weekStart], references: [weekStart], onDelete: Restrict)
+  revision  Int
+  shifts    Json
+  actorId   String
+  actor     User     @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+
+  @@unique([weekStart, revision])
+}
+
+model Audit {
+  id           String   @id @default(cuid())
+  weekStart    String
+  week         Week     @relation(fields: [weekStart], references: [weekStart], onDelete: Restrict)
+  revision     Int
+  action       String
+  beforeShifts Json
+  afterShifts  Json
+  actorId      String
+  actor        User     @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  createdAt    DateTime @default(now())
+
+  @@index([weekStart, createdAt])
+}
+
+model Settings {
+  id        String   @id @default("global")
+  rules     Json
+  updatedAt DateTime @updatedAt
+}
+
+model Template {
+  id         String   @id @default(cuid())
+  name       String
+  sourceWeek String
+  shifts     Json
+  createdAt  DateTime @default(now())
+}

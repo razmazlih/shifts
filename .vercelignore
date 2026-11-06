@@ -1,0 +1,11 @@
+.local
+.env*
+tests
+output
+test-results
+playwright-report
+.git
+ARCHITECTURE.md
+
+.playwright-cli
+.playwright-mcp
