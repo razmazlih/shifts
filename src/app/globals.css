@@ -3900,3 +3900,71 @@ label small {
   .workflow-next .workflow-number:not(:first-child) { margin: 4px 0 0; }
   .template-tabs { flex-direction: column; }
 }
+
+/* Compact schedule overview keeps the calendar close to the primary actions. */
+.schedule-page-heading { margin-bottom: 12px; gap: 12px; }
+.schedule-page-heading .eyebrow,
+.schedule-page-heading > div > p { display: none; }
+.schedule-page-heading h1 { font-size: 26px; }
+.schedule-stats { gap: 10px; margin-bottom: 14px; }
+.schedule-stats .stat-card {
+  min-height: 76px; padding: 10px 12px; gap: 10px;
+  display: grid; grid-template-columns: 32px minmax(0, 1fr);
+  align-content: center; align-items: center; row-gap: 2px;
+}
+.schedule-stats .stat-icon { width: 32px; height: 32px; grid-row: 1 / 3; }
+.schedule-stats .stat-icon svg { width: 18px; height: 18px; }
+.schedule-stats .stat-card > div { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 2px 8px; }
+.schedule-stats .stat-card > div > span { margin: 0; font-size: 11px; }
+.schedule-stats .stat-card strong { font-size: 24px; gap: 4px; }
+.schedule-stats .stat-card strong small { display: none; }
+.schedule-stats .stat-caption { position: static; grid-column: 2; font-size: 10px; color: #768395; margin: 0; }
+.schedule-panel > .calendar-toolbar { padding: 12px 16px; gap: 12px; }
+.calendar-toolbar .week-heading { gap: 10px; }
+.calendar-toolbar .calendar-icon { width: 38px; height: 38px; border-radius: 11px; }
+.calendar-toolbar .week-heading h2 { font-size: 20px; }
+.calendar-toolbar .week-heading > div > span { margin-top: 0; font-size: 11px; }
+.calendar-toolbar .week-picker { min-height: 42px; padding: 7px 10px; }
+.calendar-toolbar .add-shift { min-height: 42px; padding: 9px 14px; border-radius: 10px; }
+.week-workflow { display: grid; grid-template-columns: minmax(150px, .65fr) minmax(0, 2fr); align-items: center; gap: 6px 20px; padding: 12px 16px; }
+.workflow-heading { display: block; }
+.workflow-heading h3 { font-size: 15px; }
+.workflow-heading p { font-size: 11px; line-height: 1.5; margin-top: 3px; }
+.workflow-controls { margin: 0; gap: 8px; flex-wrap: wrap; }
+.workflow-controls label { flex: 1 1 150px; font-size: 11px; }
+.workflow-controls select { min-height: 40px; margin-top: 3px; }
+.workflow-controls .button { min-height: 40px; padding: 8px 12px; }
+.workflow-smart { min-width: 120px; }
+.workflow-hint { grid-column: 1 / -1; margin: 0; font-size: 11px; line-height: 1.6; }
+.week-workflow > .notice { grid-column: 1 / -1; }
+.schedule-panel > .calendar-subbar { padding: 8px 16px; gap: 10px; }
+.calendar-subbar .filters { padding: 2px; }
+.calendar-subbar .filter { min-height: 36px; padding: 6px 12px; }
+.calendar-subbar .employee-filter, .calendar-subbar .attention-filter { min-height: 38px; padding: 6px 10px; }
+.schedule-panel > .schedule-actions { padding: 8px 16px; }
+.schedule-actions[open] > summary { margin-bottom: 10px; }
+@media (max-width: 1100px) {
+  .week-workflow { grid-template-columns: 1fr; gap: 8px; }
+  .workflow-heading { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+  .workflow-heading p { margin: 0; }
+}
+@media (max-width: 600px) {
+  .schedule-page-heading { margin-bottom: 10px; }
+  .schedule-page-heading .heading-actions { padding-top: 0; }
+  .schedule-stats { gap: 8px; margin-bottom: 10px; }
+  .schedule-stats .stat-card { min-height: 68px; padding: 8px 10px; }
+  .schedule-panel > .calendar-toolbar { padding: 10px 12px; gap: 8px; }
+  .role-admin .calendar-toolbar .week-heading,
+  .calendar-toolbar .week-heading { gap: 8px; }
+  .role-admin .week-heading > .week-picker { min-height: 48px; }
+  .calendar-toolbar .add-shift { min-height: 44px; }
+  .week-workflow { padding: 10px 12px; }
+  .workflow-controls label { flex-basis: 100%; }
+  .workflow-controls .button, .workflow-controls select { min-height: 44px; }
+  .workflow-controls .button { flex: 1; }
+  .schedule-panel > .calendar-subbar { padding: 8px 12px; gap: 8px; }
+  .calendar-subbar .filter, .calendar-subbar .employee-filter,
+  .calendar-subbar .attention-filter { min-height: 44px; }
+  .schedule-panel > .schedule-actions { padding: 6px 12px; }
+  .schedule-actions > summary { min-height: 44px; align-content: center; }
+}

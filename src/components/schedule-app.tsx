@@ -491,7 +491,7 @@ export function ScheduleApp() {
             />
           ) : (
             <>
-              <section className="page-heading">
+              <section className="page-heading schedule-page-heading">
                 <div>
                   <div className="eyebrow">
                     {admin ? "כל הצוות. תמונה אחת." : "השבוע שלכם, במבט אחד."}
@@ -542,7 +542,7 @@ export function ScheduleApp() {
                   )}
                 </div>
               </section>
-              <section className="stats-grid" aria-label="סיכום שבועי">
+              <section className="stats-grid schedule-stats" aria-label="סיכום שבועי">
                 <div className="stat-card">
                   <span className="stat-icon teal">
                     <CalendarDays size={20} />
@@ -744,7 +744,7 @@ export function ScheduleApp() {
                   )}
                 </div>
                 {admin && <section className="week-workflow" aria-label="הכנת שבוע מהירה">
-                  <div className="workflow-heading"><span className="workflow-number">1</span><div><h3>מתבנית לשבוע מסודר</h3><p>בוחרים תבנית, משבצים את הצוות ובודקים לפני פרסום.</p></div></div>
+                  <div className="workflow-heading"><h3>הכנת השבוע</h3><p>משבצים, בודקים ומפרסמים לצוות.</p></div>
                   <div className="workflow-controls">
                     <label>מה משבצים השבוע?
                       <select aria-label="תבנית לשבוע" value={selectedTemplate} disabled={busy || loading} onChange={(e) => setSelectedTemplate(e.target.value)}>
@@ -762,7 +762,6 @@ export function ScheduleApp() {
                   </div>
                   {templatesError && <p className="notice error" role="alert">לא ניתן לטעון תבניות: {templatesError}<button className="text-button" onClick={() => void openPanel("templates")}>ניסיון נוסף</button></p>}
                   <p className="workflow-hint">{selectedTemplate ? "התבנית תוחל והעובדים ישובצו בפעולה אחת." : data?.shifts.length ? "השיבוץ פועל על כל השבוע, גם כשמוצג סינון." : "שבוע ריק? צרו תבנית עם שעות וימים, ואז לחצו על שיבוץ חכם."} השיבוץ מכבד זמינות ומכסות; חוסרים יוצגו לטיפול.</p>
-                  <div className="workflow-next"><span className="workflow-number">2</span><span>בודקים ומתקנים · לחצו על משמרת לעריכה</span><span className="workflow-number">3</span><span>מפרסמים לצוות כשמוכנים</span></div>
                 </section>}
                 {admin && <div className="calendar-subbar">
                   <div className="filters">
