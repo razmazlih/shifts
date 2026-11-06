@@ -84,6 +84,9 @@ export function ScheduleApp() {
   const [panel, setPanel] = useState<"history" | "templates" | null>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [templateName, setTemplateName] = useState("");
+  const [templateMode, setTemplateMode] = useState("week");
+  const [templateSourceDay, setTemplateSourceDay] = useState(0);
+  const [templateTargets, setTemplateTargets] = useState<Record<string, string>>({});
   const [history, setHistory] = useState<
     {
       id: string;
@@ -1123,7 +1126,7 @@ export function ScheduleApp() {
           description={
             panel === "history"
               ? "כל שינוי מתועד, כדי שתמיד תהיה תמונה מלאה."
-              : "שמרו שבוע מוצלח והשתמשו בו כנקודת פתיחה לשבוע הבא."
+              : "שמרו תבניות יומיות ושבועיות והעתיקו אותן לימים הרצויים."
           }
         >
           <div className="editor-body">
@@ -1161,9 +1164,22 @@ export function ScheduleApp() {
               )
             ) : (
               <>
+                <p className="template-help">שמרו את כל השבוע, יום מסוים, או יום שחוזר בכל שבעת ימי השבוע. התבניות כוללות משמרות ודרישות כוח אדם ללא שיבוצים והערות.</p>
                 <div className="template-save">
+                  <label>סוג התבנית
+                    <select value={templateMode} onChange={(e) => setTemplateMode(e.target.value)}>
+                      <option value="week">כל השבוע הנוכחי</option>
+                      <option value="day">תבנית יומית</option>
+                      <option value="repeat">יום שחוזר בכל השבוע</option>
+                    </select>
+                  </label>
+                  {templateMode !== "week" && <label>יום המקור
+                    <select value={templateSourceDay} onChange={(e) => setTemplateSourceDay(Number(e.target.value))}>
+                      {weekDates(week).map((date, day) => <option key={date} value={day}>{fmtDate(date, { weekday: "long" })}</option>)}
+                    </select>
+                  </label>}
                   <label>
-                    שמירת השבוע הנוכחי כתבנית
+                    שם התבנית
                     <input
                       value={templateName}
                       onChange={(e) => setTemplateName(e.target.value)}
@@ -1179,6 +1195,7 @@ export function ScheduleApp() {
                         await api("/api/templates", "POST", {
                           name: templateName,
                           weekStart: week,
+                          ...(templateMode !== "week" ? { sourceDay: templateSourceDay, repeatAllDays: templateMode === "repeat" } : {}),
                         });
                         setTemplateName("");
                         setTemplates(
@@ -1204,7 +1221,13 @@ export function ScheduleApp() {
                     <Layers size={20} />
                     <div>
                       <strong>{t.name}</strong>
-                      <small>{t.shifts.length} משמרות</small>
+                      <small>{new Set(t.shifts.map((shift) => localDate(shift.start))).size === 1 ? "תבנית יומית" : "תבנית שבועית"} · {t.shifts.length} משמרות</small>
+                      {new Set(t.shifts.map((shift) => localDate(shift.start))).size === 1 && <label>יום היעד
+                        <select value={templateTargets[t.id] ?? "0"} onChange={(e) => setTemplateTargets((current) => ({ ...current, [t.id]: e.target.value }))}>
+                          {weekDates(week).map((date, day) => <option key={date} value={day}>{fmtDate(date, { weekday: "long" })}</option>)}
+                          <option value="all">כל השבוע</option>
+                        </select>
+                      </label>}
                     </div>
                     <button
                       className="button secondary"
@@ -1212,15 +1235,37 @@ export function ScheduleApp() {
                         setPanel(null);
                         confirmMutation(
                           "להחיל את התבנית?",
-                          `התבנית ״${t.name}״ תחליף את הטיוטה הנוכחית. בדקו את השיבוצים לפני הפרסום.`,
+                          `התבנית ״${t.name}״ תחליף את המשמרות ${new Set(t.shifts.map((shift) => localDate(shift.start))).size === 1 && templateTargets[t.id] !== "all" ? "ביום היעד בלבד" : "בכל השבוע"}. ניתן לבטל את ההחלה. בדקו את השיבוצים לפני הפרסום.`,
                           "החלת תבנית",
                           "/api/templates/apply",
-                          { templateId: t.id },
+                          { templateId: t.id, ...(new Set(t.shifts.map((shift) => localDate(shift.start))).size === 1 ? templateTargets[t.id] === "all" ? { allDays: true } : { targetDay: Number(templateTargets[t.id] ?? "0") } : {}) },
                         );
                       }}
                     >
                       החלה
                     </button>
+                    <button className="button secondary" disabled={busy} aria-label={`מחיקת התבנית ${t.name}`} onClick={() => {
+                      setPanel(null);
+                      setConfirm({
+                        title: "למחוק את התבנית?",
+                        destructive: true,
+                        description: `התבנית ״${t.name}״ תימחק לצמיתות מרשימת התבניות. המשמרות בלוח יישארו כפי שהן.`,
+                        action: "מחיקת תבנית",
+                        run: async () => {
+                          setBusy(true);
+                          try {
+                            await api("/api/templates", "DELETE", { templateId: t.id });
+                            setTemplates((current) => current.filter((item) => item.id !== t.id));
+                            setToast("התבנית נמחקה");
+                          } catch (e) {
+                            setError((e as Error).message);
+                          } finally {
+                            setBusy(false);
+                            setPanel("templates");
+                          }
+                        },
+                      });
+                    }}><Trash2 size={16} />מחיקה</button>
                   </div>
                 ))}
                 {templates.length === 0 && (

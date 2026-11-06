@@ -3784,6 +3784,17 @@ label small {
   .report-progress { font-size: 12px; gap: 8px 16px; }
 }
 
+.template-help { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 16px; }
+.template-save { flex-wrap: wrap; }
+.template-save label { min-width: 140px; }
+.template-row select { width: 100%; margin-top: 5px; }
+.template-row label { display: block; margin-top: 8px; font-size: 12px; }
+@media (max-width: 600px) {
+  .template-row { flex-wrap: wrap; }
+  .template-row > div { flex-basis: calc(100% - 40px); }
+  .template-save label { flex-basis: 100%; }
+}
+
 .button.delete-confirm {
   background: #b42332;
   color: #fff;
