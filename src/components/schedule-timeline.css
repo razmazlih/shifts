@@ -2,7 +2,7 @@
 .timeline-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 18px; background:#f7faf8; color:#526d63; font-size:12px; }
 .timeline-view-toggle { border:1px solid #ccddd4; border-radius:8px; padding:8px 12px; background:white; color:#245e4d; }
 .timeline-days { display:none; }
-.timeline-scroll { overflow:auto; max-height: min(850px, 80vh); padding-bottom:16px; }
+.timeline-scroll { overflow:visible; padding-bottom:16px; }
 .timeline-grid { display:grid; grid-template-columns:52px repeat(7,minmax(0,1fr)); }
 .timeline-heading { height:80px; position:sticky; top:0; z-index:4; background:#fff; border-bottom:1px solid var(--timeline-border); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; font-size:12px; text-align:center; }
 .timeline-heading > button { background:transparent; border:0; color:#304f44; font-weight:700; padding:4px; }
@@ -18,17 +18,19 @@
 .timeline-axis-body small { font-size:9px; margin-left:2px; color:#916830; }
 .timeline-hour-line { position:absolute; inset-inline:0; border-top:1px solid #edf1ee; }
 /* One full-width card per time band, with distinct full-width shift rows. */
-.timeline-shared-card { position:absolute; inset-inline:3px; padding:1px 0; overflow:hidden; border:1px solid #d5e3db; border-radius:8px; background:#f8fbf9; }
-.timeline-band-heading { display:flex; align-items:center; justify-content:space-between; gap:3px; height:26px; padding:3px 6px; font-size:11px; font-weight:700; color:#3b594b; border-bottom:1px solid #d5e3db; }
+.timeline-shared-card { position:absolute; inset-inline:3px; display:flex; flex-direction:column; padding:0; overflow:hidden; border:1px solid #d5e3db; border-radius:10px; background:#f8fbf9; box-shadow:0 1px 3px #244d3810; }
+.timeline-band-heading { display:flex; align-items:center; justify-content:space-between; gap:4px; height:26px; flex:0 0 26px; padding:3px 7px; font-size:11px; font-weight:700; color:#294e3d; background:#f5f9f6; border-bottom:1px solid #d5e3db; }
+.timeline-band-heading > span { white-space:nowrap; font-variant-numeric:tabular-nums; }
 .timeline-band-heading small { font-size:9px; font-weight:400; white-space:nowrap; }
-.timeline-shared-rows { display:flex; flex-direction:column; }
-.timeline-shared-row { height:86px; min-width:0; }
-.timeline-shared-row .shift-card { display:flex; flex-direction:column; gap:2px; height:100%; min-height:0; margin:0; padding:5px 7px; border:0; border-inline-start:3px solid #7bb69b; border-bottom:1px solid #d5e3db; border-radius:0; overflow:hidden; }
+.timeline-shared-rows { display:flex; flex-direction:column; flex:1; min-height:0; }
+.timeline-shared-row { flex:1 1 0; min-height:0; min-width:0; container-type:size; }
+.timeline-shared-row .shift-card { display:flex; flex-direction:column; justify-content:center; gap:3px; height:100%; min-height:0; margin:0; padding:6px 8px; border:0; border-inline-start:3px solid #7bb69b; border-bottom:1px solid #d5e3db; border-radius:0; overflow:hidden; }
+.timeline-shared-row:last-child .shift-card { border-bottom:0; }
 .timeline-shared-row .shift-card.patrol { border-inline-start-color:#af96d0; }
 .timeline-shared-row .shift-card.has-error { border-inline-start-color:#d56464; }
 .timeline-shared-row .shift-card.has-warning, .timeline-shared-row .shift-card.short-staffed { border-inline-start-color:#d6a242; }
 .timeline-shared-row .shift-card-top { display:flex; flex-shrink:0; gap:2px; }
-.timeline-shared-row .shift-time { font-size:11px; }
+.timeline-shared-row .shift-time { font-size:11px; font-variant-numeric:tabular-nums; }
 .timeline-shared-row .shift-title { font-size:12px; line-height:16px; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex-shrink:0; }
 .timeline-shared-row .shift-people { margin:0; display:flex; flex-direction:row; flex-wrap:wrap; gap:0 5px; max-height:28px; overflow:hidden; }
 .timeline-shared-row .shift-people > span { font-size:11px; line-height:14px; display:block; }
@@ -69,3 +71,13 @@
 
 .timeline-shared-card.continued { border-start-start-radius:0; border-start-end-radius:0; }
 .timeline-shared-card.continues { border-end-start-radius:0; border-end-end-radius:0; }
+
+/* Use additional row space for readable content, not an empty card footer. */
+@container (min-height: 110px) {
+  .timeline-shared-row .shift-card { gap:7px; padding:10px; }
+  .timeline-shared-row .shift-title { white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; font-size:13px; line-height:18px; }
+  .timeline-shared-row .shift-people { max-height:36px; gap:2px 6px; }
+  .timeline-shared-row .shift-people > span { font-size:12px; line-height:16px; }
+  .timeline-shared-row .shift-issue-summary > span { white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
+  .timeline-shared-row .shift-covered, .timeline-shared-row .shift-warning, .timeline-shared-row .shift-issues { font-size:11px; line-height:15px; }
+}
