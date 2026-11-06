@@ -703,6 +703,7 @@ export function ScheduleApp() {
                   <div className="filters">
                     <button
                       className={group === "ALL" ? "filter selected" : "filter"}
+                      aria-pressed={group === "ALL"}
                       onClick={() => setGroup("ALL")}
                     >
                       כל הצוותים
@@ -711,6 +712,7 @@ export function ScheduleApp() {
                       <button
                         key={key}
                         className={group === key ? "filter selected" : "filter"}
+                        aria-pressed={group === key}
                         onClick={() => setGroup(key as Group)}
                       >
                         <span
