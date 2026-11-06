@@ -51,7 +51,20 @@ export function SmartScheduleDialog({ data, templates, templatesError, selectedT
   const pendingRef = useRef(false);
   const [error, setError] = useState("");
   const dates = weekDates(data.weekStart);
-  const scopeDescription = `${days.map(day => dateLabel(dates[day])).join("; ")} · ${groups.map(group => GROUP_LABELS[group]).join(" ו")}`;
+  const allDays = days.length === 7;
+  const shortDate = (date: string) => new Intl.DateTimeFormat("he-IL", { timeZone: "Asia/Jerusalem", day: "numeric", month: "numeric" }).format(new Date(`${date}T12:00:00Z`));
+  const dayDescription = allDays ? `כל השבוע (${shortDate(dates[0])}–${shortDate(dates[6])})` : days.map(day => dateLabel(dates[day])).join(" · ") || "לא נבחרו ימים";
+  const scopeDescription = `${dayDescription} · ${groups.map(group => GROUP_LABELS[group]).join(" ו") || "לא נבחרו צוותים"}`;
+  const [showTemplateUpfront] = useState(() => !data.shifts.length || !!selectedTemplate);
+  const invalidScope = !days.length || !groups.length;
+  const templateControls = <div className="smart-template-controls">
+    <label>תבנית<select aria-label="תבנית לשבוע" disabled={pending} value={selectedTemplate} onChange={event => {
+      const next = templates.find(item => item.id === event.target.value);
+      onSelectTemplate(event.target.value);
+      if (isDaily(next)) setDays([dayOfTemplate(next!)]);
+    }}><option value="">{data.shifts.length ? "המשמרות שכבר בלוח" : "בחרו תבנית"}</option>{templates.map(item => <option value={item.id} key={item.id}>{item.name}{isDaily(item) ? " · יומית" : " · שבועית"}</option>)}</select></label>
+    <button className="text-button" disabled={pending} onClick={onCreateTemplate}>יצירת תבנית</button>
+  </div>;
   async function preview() {
     if (pendingRef.current) return;
     pendingRef.current = true; setPending(true); setError("");
@@ -68,12 +81,51 @@ export function SmartScheduleDialog({ data, templates, templatesError, selectedT
   }
   function cancel() { if (pendingRef.current) return; if (proposal) void api("/api/weeks/auto", "DELETE", { proposalId: proposal.id }).catch(() => {}); onClose(); }
   const changedIds = new Set(proposal?.changes.map(change => change.shiftId));
-  return <Modal open wide title={proposal ? "תצוגה מקדימה לשיבוץ" : "שיבוץ חכם"} description={proposal ? "זו ההצעה שתישמר בדיוק לאחר אישור. הטיוטה והפרסום לא השתנו." : "בוחרים תחום פעולה ומקבלים הצעה לבדיקה לפני שמירה."} onClose={cancel}><div className="editor-body workflow-review">
-    <div className="notice"><strong>תחום הפעולה</strong><p>{scopeDescription || "בחרו ימים וצוותים"}</p><small>מסנני התצוגה בלוח אינם משנים את תחום הפעולה. בדיקות התקינות מתחשבות גם בימים, בצוותים ובשבועות אחרים.</small></div>
-    {templatesError && <p className="notice error" role="alert">לא ניתן לטעון תבניות: {templatesError}</p>}
-    {!proposal ? <><fieldset disabled={pending}><legend>אופן השיבוץ</legend><label className="workflow-radio"><input type="radio" name="schedule-mode" value="fill" checked={mode === "fill"} onChange={() => setMode("fill")} /><span><strong>השלמת חוסרים</strong><small>שיבוצים קיימים נשארים כפי שהם. בעיות קיימות יוצגו לטיפול.</small></span></label><label className="workflow-radio"><input type="radio" name="schedule-mode" value="repair" checked={mode === "repair"} onChange={() => setMode("repair")} /><span><strong>תיקון שיבוצים — מתקדם</strong><small>אפשר להציע שינוי בשיבוצים שאינם נעולים, בתחום הפעולה בלבד.</small></span></label></fieldset><fieldset disabled={pending}><legend>ימים לשינוי</legend><div className="scope-options"><label className="check-label"><input type="checkbox" checked={days.length === 7} onChange={event => setDays(event.target.checked ? [0, 1, 2, 3, 4, 5, 6] : [])} />כל השבוע</label>{dates.map((date, day) => <label key={date} className="check-label"><input type="checkbox" checked={days.includes(day)} onChange={event => setDays(current => event.target.checked ? [...current, day].sort() : current.filter(value => value !== day))} />{dateLabel(date)}</label>)}</div></fieldset><fieldset disabled={pending}><legend>צוותים לשינוי</legend><div className="scope-options">{(["MANAGERS", "PATROL"] as Group[]).map(group => <label key={group} className="check-label"><input type="checkbox" checked={groups.includes(group)} onChange={event => setGroups(current => event.target.checked ? [...current, group] : current.filter(value => value !== group))} />{GROUP_LABELS[group]}</label>)}</div></fieldset><div className="workflow-controls"><label>תבנית<select aria-label="תבנית לשבוע" disabled={pending} value={selectedTemplate} onChange={event => { const next = templates.find(item => item.id === event.target.value); onSelectTemplate(event.target.value); if (isDaily(next)) setDays([dayOfTemplate(next!)]); }}><option value="">המשמרות שכבר בלוח</option>{templates.map(item => <option value={item.id} key={item.id}>{item.name}{isDaily(item) ? " · יומית" : " · שבועית"}</option>)}</select></label><button className="button secondary" disabled={pending} onClick={onCreateTemplate}>יצירת תבנית</button></div>{template && <p className="notice warning">התבנית תשפיע רק על הימים והצוותים שנבחרו. בהשלמת חוסרים ניתן ליצור משמרות מתבנית בתחום ריק בלבד; החלפת משמרות קיימות דורשת מצב תיקון והצגה מראש.</p>}<p className="form-help">נעילות נשמרות בשני המצבים. סתירה בין נעילה לכלל תוצג לטיפול; היא אינה היתר לעקוף את הכלל.</p></> : <><div className="proposal-summary" role="status"><strong>{proposal.summary.addedAssignments} שיבוצים יתווספו</strong><span>{proposal.summary.changedAssignments} שיבוצים ישתנו</span><span>{proposal.summary.unchangedAssignments} שיבוצים יישארו</span><span>{proposal.summary.unfilledShifts} משמרות יישארו עם חוסר</span></div><h3>השינויים המוצעים</h3>{proposal.changes.length ? <ChangesList changes={proposal.changes} data={data} /> : <p>לא מוצעים שינויים בשיבוצים.</p>}<details><summary>משמרות שיישארו ללא שינוי</summary><div className="review-unchanged">{proposal.shifts.filter(shift => !changedIds.has(shift.id)).map(shift => <ShiftDescription shift={shift} data={data} key={shift.id} />)}</div></details><h3>בעיות שלא נפתרו</h3>{proposal.issues.length ? <ul className="review-issues">{proposal.issues.map((issue, index) => <li key={index} className={issue.severity === "error" ? "blocking" : ""}><strong>{proposal.shifts.find(shift => shift.id === issue.shiftId)?.title}</strong> · {issue.employeeId && `${data.employees.find(person => person.id === issue.employeeId)?.name ?? "עובד"}: `}{issue.message}</li>)}</ul> : <p>לא נמצאו בעיות לפי הנתונים והכללים הנוכחיים.</p>}<p className="form-help">החלה תשמור את ההצעה הזאת בטיוטה בלבד. שינוי בנתונים מאז יצירתה יחייב הצעה חדשה. ניתן לבטל את ההחלה בהיסטוריית השבוע.</p></>}
-    {error && <div role="alert" className="notice error">{error}</div>}
-  </div><div className="dialog-footer"><button className="button secondary" disabled={pending} onClick={cancel}>ביטול</button>{proposal && <button className="button secondary" disabled={pending} onClick={() => { void api("/api/weeks/auto", "DELETE", { proposalId: proposal.id }).catch(() => {}); setProposal(null); setError(""); }}>שינוי הבחירה</button>}<button className="button primary" disabled={pending || !days.length || !groups.length || (!selectedTemplate && !data.shifts.length)} onClick={() => void (proposal ? apply() : preview())}><Sparkles size={17} />{pending ? "בודק…" : proposal ? "החלה על הטיוטה" : "יצירת הצעה לבדיקה"}</button></div></Modal>;
+  return <Modal open wide={!!proposal} title={proposal ? "תצוגה מקדימה לשיבוץ" : "שיבוץ חכם"} description={proposal ? "זו ההצעה לבדיקה. עדיין לא נשמר או פורסם דבר." : "נכין הצעה לבדיקה. שום דבר לא נשמר בלי אישור שלך."} onClose={cancel}>
+    <div className="editor-body workflow-review smart-setup">
+      <div className="smart-scope-summary" aria-label="סיכום הבחירה">
+        <strong>{mode === "fill" ? "השלמת חוסרים" : "תיקון שיבוצים"}</strong>
+        <p>{scopeDescription}</p>
+        {template && !showTemplateUpfront && !proposal && <p>תבנית: {template.name}</p>}
+        <small>{mode === "fill" ? "השיבוצים הקיימים נשארים. משלימים רק את מה שחסר." : "שיבוצים שאינם נעולים עשויים להשתנות. השינויים יוצגו לבדיקה."}</small>
+      </div>
+      {templatesError && <p className="notice error" role="alert">לא ניתן לטעון תבניות: {templatesError}</p>}
+      {!proposal ? <>
+        {showTemplateUpfront && <div>{!data.shifts.length && !selectedTemplate && <p className="form-help">השבוע עדיין ריק. בחרו תבנית כדי להתחיל.</p>}{templateControls}</div>}
+        {template && <p className="notice warning">התבנית תחול רק בימים ובצוותים שנבחרו. החלפת משמרות קיימות דורשת בחירה במצב תיקון.</p>}
+        <details className="smart-more-options">
+          <summary>אפשרויות נוספות</summary>
+          <div className="smart-options-content">
+            <fieldset disabled={pending}><legend>ימים לשינוי</legend><div className="scope-options">
+              <label className="check-label"><input type="checkbox" checked={allDays} onChange={event => setDays(event.target.checked ? [0, 1, 2, 3, 4, 5, 6] : [])} />כל השבוע</label>
+              {dates.map((date, day) => <label key={date} className="check-label"><input type="checkbox" checked={days.includes(day)} onChange={event => setDays(current => event.target.checked ? [...current, day].sort() : current.filter(value => value !== day))} />{dateLabel(date)}</label>)}
+            </div></fieldset>
+            <fieldset disabled={pending}><legend>צוותים לשינוי</legend><div className="scope-options">{(["MANAGERS", "PATROL"] as Group[]).map(group => <label key={group} className="check-label"><input type="checkbox" checked={groups.includes(group)} onChange={event => setGroups(current => event.target.checked ? [...current, group] : current.filter(value => value !== group))} />{GROUP_LABELS[group]}</label>)}</div></fieldset>
+            <fieldset disabled={pending}><legend>אופן השיבוץ</legend>
+              <label className="workflow-radio"><input type="radio" name="schedule-mode" value="fill" checked={mode === "fill"} onChange={() => setMode("fill")} /><span><strong>השלמת חוסרים</strong><small>ללא שינוי בשיבוצים הקיימים.</small></span></label>
+              <label className="workflow-radio"><input type="radio" name="schedule-mode" value="repair" checked={mode === "repair"} onChange={() => setMode("repair")} /><span><strong>תיקון שיבוצים — מתקדם</strong><small>מאפשר להציע שינוי בשיבוצים שאינם נעולים.</small></span></label>
+            </fieldset>
+            {!showTemplateUpfront && templateControls}
+            <p className="form-help">מסנני הלוח לא משנים את הבחירה כאן. כל השיבוצים נבדקים מול הכללים, גם בצוותים ובשבועות אחרים. נעילות נשמרות; סתירות לכללים יוצגו לטיפול.</p>
+          </div>
+        </details>
+        {invalidScope && <p className="notice warning" role="status">בחרו לפחות יום אחד וצוות אחד באפשרויות הנוספות.</p>}
+      </> : <>
+        {template && <p className="form-help">תבנית: {template.name}</p>}
+        <div className="proposal-summary" role="status"><strong>{proposal.summary.addedAssignments} שיבוצים יתווספו</strong><span>{proposal.summary.changedAssignments} שיבוצים ישתנו</span><span>{proposal.summary.unchangedAssignments} שיבוצים יישארו</span><span>{proposal.summary.unfilledShifts} משמרות יישארו עם חוסר</span></div>
+        <h3>השינויים המוצעים</h3>{proposal.changes.length ? <ChangesList changes={proposal.changes} data={data} /> : <p>לא מוצעים שינויים בשיבוצים.</p>}
+        <details><summary>משמרות שיישארו ללא שינוי</summary><div className="review-unchanged">{proposal.shifts.filter(shift => !changedIds.has(shift.id)).map(shift => <ShiftDescription shift={shift} data={data} key={shift.id} />)}</div></details>
+        <h3>בעיות שלא נפתרו</h3>{proposal.issues.length ? <ul className="review-issues">{proposal.issues.map((issue, index) => <li key={index} className={issue.severity === "error" ? "blocking" : ""}><strong>{proposal.shifts.find(shift => shift.id === issue.shiftId)?.title}</strong> · {issue.employeeId && `${data.employees.find(person => person.id === issue.employeeId)?.name ?? "עובד"}: `}{issue.message}</li>)}</ul> : <p>לא נמצאו בעיות לפי הנתונים והכללים הנוכחיים.</p>}
+        <p className="form-help">החלה תשמור את ההצעה הזאת בטיוטה בלבד. שינוי בנתונים מאז יצירתה יחייב הצעה חדשה. ניתן לבטל את ההחלה בהיסטוריית השבוע.</p>
+      </>}
+      {error && <div role="alert" className="notice error">{error}</div>}
+    </div>
+    <div className="dialog-footer smart-schedule-footer">
+      <button className="button secondary" disabled={pending} onClick={cancel}>ביטול</button>
+      {proposal && <button className="button secondary" disabled={pending} onClick={() => { void api("/api/weeks/auto", "DELETE", { proposalId: proposal.id }).catch(() => {}); setProposal(null); setError(""); }}>שינוי הבחירה</button>}
+      <button className="button primary" disabled={pending || invalidScope || (!selectedTemplate && !data.shifts.length)} onClick={() => void (proposal ? apply() : preview())}><Sparkles size={17} />{pending ? "בודק…" : proposal ? "החלה על הטיוטה" : "יצירת הצעה לבדיקה"}</button>
+    </div>
+  </Modal>;
 }
 
 type PublicationReview = { revision: number; publishedRevision: number | null; reviewToken: string; changes: Change[]; affectedEmployees: { id: string; name: string }[]; issues: Issue[]; shortages: Issue[] };

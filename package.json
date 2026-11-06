@@ -15,7 +15,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "admin:create": "tsx scripts/create-admin.ts",
-    "test:e2e:local": "node scripts/test-e2e-local.mjs"
+    "test:e2e:local": "node scripts/test-e2e-local.mjs",
+    "test:ui": "playwright test --config=playwright.ui.config.ts"
   },
   "dependencies": {
     "@js-temporal/polyfill": "^0.5.1",
@@ -39,8 +40,10 @@
     "@types/node": "^22.19.0",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
+    "esbuild": "^0.28.2",
     "eslint": "^9.39.0",
     "eslint-config-next": "^16.0.0",
+    "postcss": "^8.5.32",
     "prisma": "^6.19.0",
     "tailwindcss": "^4.1.16",
     "tsx": "^4.20.6",

@@ -69,3 +69,27 @@
 
 .shift-editor-footer { flex-wrap: wrap; }
 .save-status { flex-basis: 100%; margin: 0; max-height: 100px; overflow-y: auto; }
+
+/* Keep the usual action short; less common controls stay one click away. */
+.smart-scope-summary { padding: 16px; border-radius: 12px; background: #f1f7f4; overflow-wrap: anywhere; }
+.smart-scope-summary > strong { display: block; font-size: 17px; color: #24584c; }
+.smart-scope-summary p { margin: 6px 0; line-height: 1.7; }
+.smart-scope-summary small { display: block; color: #4f635b; line-height: 1.7; }
+.smart-more-options { border-top: 1px solid var(--line); }
+.smart-more-options > summary { cursor: pointer; padding-block: 14px; min-height: 48px; color: #245f57; font-weight: 600; }
+.smart-more-options > summary:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; border-radius: 4px; }
+.smart-options-content { display: flex; flex-direction: column; gap: 16px; padding-bottom: 4px; }
+.smart-options-content .scope-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.smart-options-content .check-label { min-height: 44px; }
+.smart-template-controls { display: flex; flex-direction: column; gap: 8px; }
+.smart-template-controls label { display: flex; flex-direction: column; gap: 6px; color: #344d43; }
+.smart-template-controls select { width: 100%; min-height: 44px; }
+.smart-template-controls .text-button { align-self: flex-start; min-height: 44px; }
+.smart-setup .form-help { margin: 0; line-height: 1.8; }
+.smart-schedule-footer { flex-wrap: wrap; gap: 8px; }
+.smart-schedule-footer > .primary { margin-inline-start: auto; }
+@media (max-width: 600px) {
+  .smart-scope-summary { padding: 12px; }
+  .smart-options-content .scope-options { grid-template-columns: 1fr; }
+  .smart-schedule-footer > .primary { flex: 1; }
+}

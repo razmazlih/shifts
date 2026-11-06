@@ -37,6 +37,7 @@ test('smart scheduling repairs an overlap in the draft, reports changes and supp
   await expect(page.locator('.calendar-loading')).toBeHidden();
   await page.getByRole('button', { name: 'שיבוץ חכם', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'שיבוץ חכם', exact: true })).toBeVisible();
+  await page.getByText('אפשרויות נוספות', { exact: true }).click();
   await page.getByRole('radio', { name: /תיקון שיבוצים/ }).check();
   await page.getByRole('button', { name: 'יצירת הצעה לבדיקה', exact: true }).click();
   const confirmation = page.getByRole('dialog', { name: 'תצוגה מקדימה לשיבוץ', exact: true });

@@ -87,6 +87,7 @@ test("manager edits a template then opens explicit day and team preparation with
   const smart = page.getByRole("dialog", { name: "שיבוץ חכם", exact: true });
   await expect(smart).toBeVisible();
   await expect(smart.getByLabel("תבנית לשבוע", { exact: true })).toHaveValue(template.id);
+  await smart.getByText("אפשרויות נוספות", { exact: true }).click();
   await expect(smart.getByText("ימים לשינוי", { exact: true })).toBeVisible();
   await expect(smart.getByText("צוותים לשינוי", { exact: true })).toBeVisible();
   const current = await (await context.request.get(`/api/weeks?week=${WEEK}`)).json() as WeekData;
