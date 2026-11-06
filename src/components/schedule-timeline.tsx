@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Plus } from "lucide-react";
 import { today } from "@/lib/time";
 import { buildTimelineBands, getTimelineRange, layoutTimelineShifts, summarizeTimelineShifts } from "@/lib/timeline";
@@ -17,16 +17,14 @@ export function ScheduleTimeline({ dates, shifts, admin, group, renderCard, onAd
 }) {
   const [chosenDate, setChosenDate] = useState(today());
   const [dayView, setDayView] = useState(false);
-  const [fitScreen, setFitScreen] = useState(true);
   const [viewport, setViewport] = useState({ width: 0, height: 900 });
-  const boardRef = useRef<HTMLElement>(null);
   useEffect(() => {
     const measure = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, []);
-  const compact = fitScreen && !dayView && viewport.width > 1100;
+  const compact = !dayView && viewport.width > 1100;
   const activeDate = dates.includes(chosenDate) ? chosenDate : dates[0];
   const summaries = summarizeTimelineShifts(shifts);
   const envelopes = summaries.map(item => ({ ...item.shift,
@@ -48,14 +46,11 @@ export function ScheduleTimeline({ dates, shifts, admin, group, renderCard, onAd
     return minute === range.start || minute === range.end || (minute % 120 === 0 && position(minute) - position(range.start) >= 18 && position(range.end) - position(minute) >= 18);
   });
   const teams = (["MANAGERS", "PATROL"] as Group[]).filter(team => group === "ALL" || team === group);
-  return <section ref={boardRef} className={`schedule-timeline ${compact ? "timeline-fit" : ""} ${dayView ? "timeline-day-view" : ""}`} aria-label="לוח משמרות לפי שעות">
+  return <section className={`schedule-timeline ${compact ? "timeline-fit" : ""} ${dayView ? "timeline-day-view" : ""}`} aria-label="לוח משמרות לפי שעות">
     <div className="timeline-toolbar">
       <span>מי עובד ומתי · לחצו על שם לפירוט השיבוצים</span>
       <div className="timeline-view-actions">
-      {!dayView && <button className="timeline-fit-toggle" aria-pressed={fitScreen} onClick={() => {
-        setFitScreen(value => !value);
-        requestAnimationFrame(() => boardRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }));
-      }}>{fitScreen ? "תצוגה מרווחת" : "התאמה למסך"}</button>}
+
       <button className="timeline-view-toggle" onClick={() => setDayView(!dayView)}>{dayView ? "הצגת כל השבוע" : "מיקוד ביום אחד"}</button>
       </div>
     </div>
