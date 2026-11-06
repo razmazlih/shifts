@@ -52,6 +52,9 @@ import { Modal } from "./ui/dialog";
 import { ScheduleTimeline } from "./schedule-timeline";
 import { TemplateBuilder } from "./template-builder";
 import { ShiftEditor } from "./shift-editor";
+import { EmployeeHome } from "./employee-home";
+import { AttentionQueue, SmartScheduleDialog, PublicationDialog } from "./manager-workflows";
+import { coverageGaps } from "@/lib/coverage";
 import { EmployeesPanel, SettingsPanel } from "./team-panels";
 const MonthlyReportPanel = dynamic(() => import("./monthly-report-panel").then((module) => module.MonthlyReportPanel));
 const fmtDate = (date: string, options: Intl.DateTimeFormatOptions) =>
@@ -75,10 +78,26 @@ export function ScheduleApp() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
-  const [view, setView] = useState<"schedule" | "employees" | "settings" | "monthly">(
+  const [view, setView] = useState<"home" | "schedule" | "employees" | "settings" | "monthly">(
     "schedule",
   );
   const [mine, setMine] = useState(true);
+  const initializedUser = useRef(false);
+  const [activeDate, setActiveDate] = useState(today);
+  const [viewMode, setViewMode] = useState<"list" | "timeline">("list");
+  const [exportVersion, setExportVersion] = useState<"published" | "draft">("published");
+  const [publishOpen, setPublishOpen] = useState(false);
+  const mutationPending = useRef(false);
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      try { const saved = localStorage.getItem("mishmeret-schedule-view"); if (saved === "list" || saved === "timeline") setViewMode(saved); } catch { /* View preference is optional. */ }
+    }, 0);
+    return () => clearTimeout(timeout);
+  }, []);
+  function chooseViewMode(next: "list" | "timeline") {
+    setViewMode(next);
+    try { localStorage.setItem("mishmeret-schedule-view", next); } catch { /* No private data is persisted. */ }
+  }
   const [group, setGroup] = useState<"ALL" | Group>("ALL");
   const [editor, setEditor] = useState<{ shift: Shift; isNew: boolean } | null>(
     null,
@@ -120,6 +139,10 @@ export function ScheduleApp() {
         if (generation !== requestGeneration.current) return;
         setData(value);
         setUser(value.user);
+        if (!initializedUser.current) {
+          initializedUser.current = true;
+          if (value.user.role === "EMPLOYEE") setView("home");
+        }
         setRefreshAt(new Date());
         setError("");
       } catch (e) {
@@ -227,6 +250,8 @@ export function ScheduleApp() {
   const shortage = (data?.shifts || []).filter(hasCoverageGap).length;
   const errors = data?.issues.filter((i) => i.severity === "error") || [];
   async function mutate(path: string, body: unknown, success: string) {
+    if (mutationPending.current) return;
+    mutationPending.current = true;
     setBusy(true);
     setError("");
     try {
@@ -234,14 +259,16 @@ export function ScheduleApp() {
       setData(value);
       setToast(success);
     } catch (e) {
-      setError((e as Error).message);
+      setError(`לא נשמר. ${(e as Error).message}`);
       throw e;
     } finally {
+      mutationPending.current = false;
       setBusy(false);
     }
   }
   async function saveShifts(next: Shift[]) {
-    if (!data) return;
+    if (!data || mutationPending.current) return;
+    mutationPending.current = true;
     setBusy(true);
     try {
       const value = await api<WeekData>("/api/weeks", "PUT", {
@@ -252,6 +279,7 @@ export function ScheduleApp() {
       setData(value);
       setToast("השינויים נשמרו בטיוטה");
     } finally {
+      mutationPending.current = false;
       setBusy(false);
     }
   }
@@ -259,10 +287,11 @@ export function ScheduleApp() {
     if (next === week) return;
     requestGeneration.current++;
     setLoading(true);
+    setData(null);
     setWeek(next);
   }
   function newShift(date = dates[0], team: Group = "MANAGERS") {
-    if (loading || busy) return;
+    if (loading || busy || !data || data.weekStart !== week) return;
     setEditor({
       isNew: true,
       shift: {
@@ -315,27 +344,6 @@ export function ScheduleApp() {
       setError((e as Error).message);
     }
   }
-  function runSmartSchedule() {
-    if (!data || busy || loading) return;
-    const template = templates.find((item) => item.id === selectedTemplate);
-    const path = template ? "/api/templates/apply" : "/api/weeks/auto";
-    const extra = template ? { templateId: template.id, autoSchedule: true,
-      ...(new Set(template.shifts.map((shift) => localDate(shift.start))).size === 1 ? templateTargets[template.id] === "all" ? { allDays: true } : { targetDay: Number(templateTargets[template.id] ?? templateSourceWeekday(template)) } : {}) } : {};
-    if (data.shifts.length) {
-      confirmMutation(
-        template ? "לבנות את השבוע מהתבנית?" : "שיבוץ חכם ותיקון בעיות",
-        template
-          ? `התבנית ״${template.name}״ תחליף את המשמרות ${new Set(template.shifts.map((shift) => localDate(shift.start))).size === 1 && templateTargets[template.id] !== "all" ? "ביום שנבחר" : "בכל השבוע"}, והמערכת תשבץ עובדים בכל השבוע לפי הזמינות והכללים. ניתן לבטל בפעולה אחת. הסידור שפורסם נשאר עד לפרסום הבא.`
-          : "המערכת תמלא חוסרים ותתקן בעיות בכל השבוע. שיבוצים בעייתיים עשויים להשתנות; שיבוצים תקינים יישמרו ככל האפשר. אפשר לבטל את הפעולה. התוצאה נשמרת בטיוטה.",
-        template ? "בניית שבוע ושיבוץ" : "תיקון ושיבוץ", path, extra,
-      );
-    } else {
-      void mutate(path, { weekStart: week, revision: data.revision, ...extra }, "השבוע נבנה והשיבוץ נשמר בטיוטה").catch(() => {});
-    }
-    setAttentionOnly(false);
-    setEmployeeFilter("ALL");
-    setGroup("ALL");
-  }
   const navigate = (next: typeof view) => {
     setView(next);
     setMobileNav(false);
@@ -357,12 +365,13 @@ export function ScheduleApp() {
         </div>
         <div className="nav-caption">סביבת העבודה</div>
         <nav>
+          {!admin && user && <button className={view === "home" ? "nav-item active" : "nav-item"} onClick={() => navigate("home")}><CalendarDays size={20} />המשמרת שלי<ChevronLeft size={15} /></button>}
           <button
             className={view === "schedule" ? "nav-item active" : "nav-item"}
-            onClick={() => navigate("schedule")}
+            onClick={() => { if (!admin) setMine(false); navigate("schedule"); }}
           >
             <CalendarDays size={20} />
-            {admin || !mine ? "לוח משמרות" : "המשמרות שלי"}
+            {admin ? "לוח משמרות" : "לוח הצוות"}
             <ChevronLeft size={15} />
           </button>
           <button className={view === "monthly" ? "nav-item active" : "nav-item"} onClick={() => navigate("monthly")}><Clock3 size={20} />{admin ? "סיכום חודשי" : "החודש שלי"}<ChevronLeft size={15} /></button>
@@ -442,7 +451,7 @@ export function ScheduleApp() {
             <span>מרחב הצוות</span>
             <ChevronLeft size={14} />
             <strong>
-              {view === "schedule"
+              {view === "home" ? "המשמרת שלי" : view === "schedule"
                 ? admin ? "לוח משמרות" : "המשמרות שלי"
                 : view === "monthly"
                   ? admin ? "סיכום חודשי" : "החודש שלי"
@@ -479,7 +488,9 @@ export function ScheduleApp() {
               </button>
             </div>
           )}
-          {view === "monthly" && user ? (
+          {view === "home" && user && !admin ? (
+            <EmployeeHome onViewTeam={() => { setMine(false); navigate("schedule"); }} onViewMonth={() => navigate("monthly")} />
+          ) : view === "monthly" && user ? (
             <MonthlyReportPanel user={user} />
           ) : view === "employees" && admin ? (
             <EmployeesPanel
@@ -523,14 +534,7 @@ export function ScheduleApp() {
                       <button
                         className="button primary"
                         disabled={busy || loading || !data?.hasDraft}
-                        onClick={() =>
-                          confirmMutation(
-                            "לפרסם את השבוע לצוות?",
-                            `לאחר הפרסום, העובדים יראו את הגרסה הנוכחית של הלוח.${errors.length ? ` קיימות ${errors.length} התנגשויות שחייבים לפתור לפני הפרסום.` : ""}${shortage || unfilled ? ` לתשומת לבכם: ${Math.max(shortage, unfilled)} משמרות עדיין אינן מכוסות במלואן.` : ""}`,
-                            "פרסום לצוות",
-                            "/api/weeks/publish",
-                          )
-                        }
+                        onClick={() => setPublishOpen(true)}
                       >
                         <ArrowUpLeft size={17} />
                         פרסום לצוות
@@ -637,7 +641,7 @@ export function ScheduleApp() {
                         ? `${errors.length} התנגשויות לבדיקה`
                         : shortage
                           ? "עוד רגע, והצוות מוכן"
-                          : "אין התנגשויות"
+                          : data?.shifts.length ? "אין התנגשויות לפי הנתונים" : "השבוע ריק · טרם נבדק"
                       : data?.publishedAt
                         ? "זמין לצוות"
                         : "הלוח יופיע לאחר פרסום"}
@@ -654,7 +658,7 @@ export function ScheduleApp() {
                       תוקנו {data.autoSummary.resolvedErrors} התראות שגיאה · עודכנו {data.autoSummary.changedShiftIds.length} משמרות.
                     </p>
                     <p>
-                      {data.autoSummary.remainingErrors === 0 && data.autoSummary.unfilledShifts === 0
+                      {data.shifts.length > 0 && data.autoSummary.remainingErrors === 0 && data.autoSummary.unfilledShifts === 0
                         ? "הסידור תקין וכל המשמרות מכוסות. אפשר לבדוק ולפרסם לצוות."
                         : `נותרו ${data.autoSummary.remainingErrors} התראות שגיאה ו־${data.autoSummary.unfilledShifts} משמרות עם חוסר עובדים. יש לבדוק את האזהרות בלוח.`}
                     </p>
@@ -671,6 +675,7 @@ export function ScheduleApp() {
                   </div>
                 </div>
               )}
+              {admin && data && !loading && <AttentionQueue data={data} expanded={attentionOnly} onExpand={() => setAttentionOnly(current => !current)} onOpen={shift => setEditor({ shift, isNew: false })} />}
               <section className="schedule-panel">
                 <div className="calendar-toolbar">
                   <div className="week-heading">
@@ -700,7 +705,7 @@ export function ScheduleApp() {
                       <button
                         className="button today-button"
                         disabled={busy}
-                        onClick={() => changeWeek(weekStart(today()))}
+                        onClick={() => { setActiveDate(today()); changeWeek(weekStart(today())); }}
                       >
                         היום
                       </button>
@@ -748,6 +753,7 @@ export function ScheduleApp() {
                     </div>
                   )}
                 </div>
+                <div className="schedule-display-options"><span>תצוגת הלוח</span><div className="segmented" aria-label="אופן הצגת המשמרות"><button className={viewMode === "list" ? "selected" : ""} aria-pressed={viewMode === "list"} onClick={() => chooseViewMode("list")}>רשימה</button><button className={viewMode === "timeline" ? "selected" : ""} aria-pressed={viewMode === "timeline"} onClick={() => chooseViewMode("timeline")}>ציר זמן</button></div>{admin && <span>המסננים הבאים משנים תצוגה בלבד</span>}</div>
                 {admin && <div className="calendar-subbar">
                   <div className="filters">
                     <button
@@ -874,7 +880,7 @@ export function ScheduleApp() {
                     <p>מסדרים את השבוע…</p>
                   </div>
                 ) : (
-                  <ScheduleTimeline dates={dates} shifts={shifts} admin={admin} group={group} onAdd={newShift}
+                  <ScheduleTimeline dates={dates} shifts={shifts} admin={admin} group={group} onAdd={newShift} selectedDate={activeDate} onSelectedDateChange={setActiveDate} viewMode={viewMode}
                     renderCard={(shift, sources) => <ShiftCard key={shift.id} shift={shift} sources={sources} data={data!} admin={admin}
                       mine={shift.assignments.some((a) => a.employeeId === user?.employeeId)}
                       onClick={() => { if (!busy && !loading) { if (sources.length > 1) setSourceChoices(sources); else setEditor({ shift: sources[0], isNew: false }); } }} />}
@@ -918,6 +924,7 @@ export function ScheduleApp() {
                 <div className="button-row">
                   {admin && (
                     <>
+                      <label className="export-version">גרסה להפצה<select aria-label="גרסה לייצוא ולהדפסה" value={exportVersion} onChange={event => setExportVersion(event.target.value as "published" | "draft")}><option value="published">הסידור שפורסם</option><option value="draft">טיוטה — טרם פורסמה</option></select></label>
                       <button
                         className="text-button"
                         onClick={() => openPanel("history")}
@@ -927,7 +934,7 @@ export function ScheduleApp() {
                       </button>
                       <a
                         className="text-button"
-                        href={`/api/export?week=${week}&version=draft`}
+                        href={`/api/export?week=${week}&version=${exportVersion}`}
                       >
                         <Download size={15} />
                         ייצוא לאקסל
@@ -938,7 +945,7 @@ export function ScheduleApp() {
                     className="text-button"
                     target="_blank"
                     rel="noopener noreferrer"
-                    href={`/print?week=${week}&version=${admin ? "draft" : "published"}&scope=${!admin && !mine ? "team" : "mine"}&auto=1`}
+                    href={`/print?week=${week}&version=${admin ? exportVersion : "published"}&scope=${!admin && !mine ? "team" : "mine"}&auto=1`}
                   >
                     <Printer size={15} />
                     הדפסה
@@ -1049,38 +1056,8 @@ export function ScheduleApp() {
           {admin && data?.issues.filter(issue => issue.shiftId === source.id).map((issue, index) => <small key={index}>{issue.message}</small>)}
         </button>)}</div>
       </Modal>}
-      {admin && smartOpen && !panel && (
-        <Modal open onClose={() => !busy && setSmartOpen(false)} title="שיבוץ חכם" description="בוחרים אילו משמרות לשבץ. המערכת מתאימה עובדים לפי זמינות, מכסות וכללי הצוות.">
-          <div className="editor-body smart-schedule-body">
-            <div className="smart-schedule-week"><CalendarDays size={20} /><div><span>השבוע לשיבוץ</span><strong>{fmtDate(week, { day: "numeric", month: "long" })} – {fmtDate(dates[6], { day: "numeric", month: "long", year: "numeric" })}</strong></div></div>
-                <section className="smart-schedule-options" aria-label="הכנת שבוע מהירה">
-                  <div className="workflow-controls">
-                    <label><span>תבנית</span>
-                      <select aria-label="תבנית לשבוע" value={selectedTemplate} disabled={busy || loading} onChange={(e) => setSelectedTemplate(e.target.value)}>
-                        <option value="">המשמרות שכבר בלוח</option>
-                        {templates.map((template) => <option key={template.id} value={template.id}>{template.name} · {template.shifts.length} משמרות{new Set(template.shifts.map((shift) => localDate(shift.start))).size === 1 ? " · תבנית יומית" : ""}</option>)}
-                      </select>
-                    </label>
-                    {templates.filter((template) => template.id === selectedTemplate && new Set(template.shifts.map((shift) => localDate(shift.start))).size === 1).map((template) => <label key={template.id}><span>יום יעד</span>
-                      <select aria-label="יעד התבנית היומית" value={templateTargets[template.id] ?? String(templateSourceWeekday(template))} disabled={busy || loading} onChange={(e) => setTemplateTargets((current) => ({ ...current, [template.id]: e.target.value }))}>
-                        {dates.map((date, day) => <option key={date} value={day}>{fmtDate(date, { weekday: "long" })}</option>)}<option value="all">כל השבוע</option>
-                      </select>
-                    </label>)}
-                    <button className="button secondary" disabled={busy || loading} onClick={() => { setTemplateTab("new"); void openPanel("templates"); }}><Plus size={17} />יצירת תבנית</button>
-                  </div>
-                  {templatesError && <p className="notice error" role="alert">לא ניתן לטעון תבניות: {templatesError}<button className="text-button" onClick={() => void openPanel("templates")}>ניסיון נוסף</button></p>}
-                  <div className="smart-schedule-note"><p className="workflow-hint">{selectedTemplate ? "התבנית תוחל והעובדים ישובצו בפעולה אחת." : data?.shifts.length ? "השיבוץ פועל על כל השבוע, גם כשמוצג סינון." : "שבוע ריק? צרו תבנית עם שעות וימים, ואז לחצו על שיבוץ חכם."} השיבוץ מכבד זמינות ומכסות; חוסרים יוצגו לטיפול. לאחר השיבוץ בודקים את המשמרות ומפרסמים לצוות.</p></div>
-                </section>
-            {!selectedTemplate && !data?.shifts.length && <p className="notice">השבוע ריק. בחרו תבנית קיימת או צרו תבנית חדשה כדי להתחיל.</p>}
-            {selectedTemplate && <p className="notice">החלת תבנית מחליפה את המשמרות בטווח שנבחר. השיבוץ מתבצע בכל השבוע, גם כשמוצגים מסננים בלוח.</p>}
-            <div className="smart-schedule-draft"><ShieldCheck size={18} /><span>התוצאה נשמרת בטיוטה. הצוות יראה אותה רק לאחר פרסום, ואפשר לבטל את השיבוץ.</span></div>
-          </div>
-          <div className="dialog-footer">
-            <button className="button secondary" disabled={busy} onClick={() => setSmartOpen(false)}>ביטול</button>
-            <button className="button primary" disabled={busy || loading || (!!selectedTemplate && !templates.some((template) => template.id === selectedTemplate)) || (!selectedTemplate && !data?.shifts.length)} onClick={() => { setSmartOpen(false); runSmartSchedule(); }}><Sparkles size={18} />הפעלת שיבוץ חכם</button>
-          </div>
-        </Modal>
-      )}
+      {admin && data && smartOpen && !panel && <SmartScheduleDialog data={data} templates={templates} templatesError={templatesError} selectedTemplate={selectedTemplate} initialTarget={templateTargets[selectedTemplate]} onSelectTemplate={setSelectedTemplate} onCreateTemplate={() => { setTemplateTab("new"); void openPanel("templates"); }} onClose={() => setSmartOpen(false)} onApplied={value => { setData(value); setSmartOpen(false); setToast("ההצעה שנבדקה נשמרה בטיוטה"); }} />}
+      {admin && data && publishOpen && <PublicationDialog data={data} onClose={() => setPublishOpen(false)} onOpenShift={shift => setEditor({ shift, isNew: false })} onPublished={value => { setData(value); setPublishOpen(false); setToast("הסידור פורסם וזמין לעובדים"); }} />}
       {confirm && (
         <Modal
           open
@@ -1088,6 +1065,7 @@ export function ScheduleApp() {
           title={confirm.title}
           description={confirm.description}
         >
+          {error && <div className="editor-body"><div className="notice error" role="alert">{error}</div></div>}
           <div className="dialog-footer">
             <button
               className="button secondary"
@@ -1104,7 +1082,7 @@ export function ScheduleApp() {
                   await confirm.run();
                   setConfirm(null);
                 } catch {
-                  setConfirm(null);
+                  // Keep the failed action open so the user can retry or cancel.
                 }
               }}
             >
@@ -1325,7 +1303,9 @@ function ShiftCard({
         {overnight && <small className="overnight">+{Math.round((Date.parse(localDate(shift.end)) - Date.parse(localDate(shift.start))) / 86400000)}</small>}
       </div>
       <strong className="shift-title">{names.join(" · ") || "טרם שובץ"}</strong>
-      <span className="shift-group">{GROUP_LABELS[shift.group]}</span>
+      <span className="shift-group"><span>{GROUP_LABELS[shift.group]}</span> · <span>{sources.length === 1 ? sources[0].title : `${sources.length} משמרות מקור`}</span></span>
+      {admin && (short || issues.length > 0) && <span className="shift-warnings">{sources.flatMap(source => coverageGaps(source).map((gap, index) => <span key={`${source.id}-gap-${index}`}><AlertCircle size={13} />{gap.message}</span>))}{issues.filter(issue => issue.severity === "error" || !issue.code.includes("UNDERSTAFF") && !issue.code.includes("COVER") && !issue.code.includes("UNFILLED")).map((issue, index) => <span key={`${issue.shiftId}-${index}`} className={issue.severity === "error" ? "blocking" : ""}><AlertCircle size={13} />{issue.code === "OVERLAP" && "חפיפה · "}{issue.employeeId && `${data.employees.find(employee => employee.id === issue.employeeId)?.name ?? "עובד"}: `}{issue.message}</span>)}</span>}
+      {sources.length > 1 && <span className="shift-source-count">לחצו לפתיחת {sources.length} משמרות המקור</span>}
       {splitHours && <div className="shift-people">{shift.assignments.map((a, i) => <span key={`${a.employeeId}-${i}`}>
         {names[i]} <span dir="ltr">{localTime(a.start)}–{localTime(a.end)}</span>
       </span>)}</div>}
@@ -1334,27 +1314,5 @@ function ShiftCard({
 }
 
 function hasCoverageGap(shift: Shift) {
-  const start = Date.parse(shift.start),
-    end = Date.parse(shift.end);
-  const spans = shift.assignments.map((a) => ({
-    start: Date.parse(a.start),
-    end: Date.parse(a.end),
-  }));
-  const points = [
-    ...new Set([
-      start,
-      end,
-      ...spans.flatMap((a) => [
-        Math.max(start, Math.min(end, a.start)),
-        Math.max(start, Math.min(end, a.end)),
-      ]),
-    ]),
-  ].sort((a, b) => a - b);
-  return points
-    .slice(0, -1)
-    .some(
-      (p, i) =>
-        spans.filter((a) => a.start <= p && a.end >= points[i + 1]).length <
-        shift.required,
-    );
+  return coverageGaps(shift).length > 0;
 }

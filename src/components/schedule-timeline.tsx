@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Plus } from "lucide-react";
-import { today } from "@/lib/time";
+import { localDate, today } from "@/lib/time";
 import { buildTimelineBands, getTimelineRange, layoutTimelineShifts, summarizeTimelineShifts } from "@/lib/timeline";
 import { GROUP_LABELS, type Group, type Shift } from "@/lib/types";
 import "./schedule-timeline.css";
@@ -10,10 +10,12 @@ import "./schedule-timeline.css";
 const dateLabel = (date: string, options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("he-IL", options).format(new Date(`${date}T12:00:00`));
 const hourLabel = (minute: number) => `${String(Math.floor(minute / 60) % 24).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}${minute >= 1440 ? ` +${Math.floor(minute / 1440)}` : ""}`;
 
-export function ScheduleTimeline({ dates, shifts, admin, group, renderCard, onAdd }: {
+export function ScheduleTimeline({ dates, shifts, admin, group, renderCard, onAdd, selectedDate, onSelectedDateChange, viewMode = "timeline" }: {
   dates: string[]; shifts: Shift[]; admin: boolean; group: "ALL" | Group;
   renderCard: (shift: Shift, sources: Shift[]) => ReactNode;
   onAdd: (date: string, group: Group) => void;
+  selectedDate?: string; onSelectedDateChange?: (date: string) => void;
+  viewMode?: "list" | "timeline";
 }) {
   const [chosenDate, setChosenDate] = useState(today());
   const [dayView, setDayView] = useState(false);
@@ -24,10 +26,13 @@ export function ScheduleTimeline({ dates, shifts, admin, group, renderCard, onAd
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, []);
-  const compact = !dayView && viewport.width > 1100;
-  const desktopDay = dayView && viewport.width > 1100;
-  const activeDate = dates.includes(chosenDate) ? chosenDate : dates[0];
-  const summaries = summarizeTimelineShifts(shifts);
+  const compact = false;
+  const desktopDay = viewMode === "list" || (dayView && viewport.width > 1100);
+  const chooseDate = (date: string) => { setChosenDate(date); onSelectedDateChange?.(date); };
+  const requestedDate = selectedDate ?? chosenDate;
+  const activeDate = dates.includes(requestedDate) ? requestedDate : dates[0];
+  // Managers must see each original staffing requirement and its warnings.
+  const summaries = admin ? shifts.map(shift => ({ date: localDate(shift.start), shift, sources: [shift] })) : summarizeTimelineShifts(shifts);
   const envelopes = summaries.map(item => ({ ...item.shift,
     start: item.sources.reduce((value, source) => Date.parse(source.start) < Date.parse(value) ? source.start : value, item.sources[0].start),
     end: item.sources.reduce((value, source) => Date.parse(source.end) > Date.parse(value) ? source.end : value, item.sources[0].end),
@@ -35,7 +40,7 @@ export function ScheduleTimeline({ dates, shifts, admin, group, renderCard, onAd
   const range = getTimelineRange(envelopes);
   const bands = buildTimelineBands(envelopes);
   const naturalHeight = bands.reduce((sum, band) => sum + band.height, 0);
-  const height = compact ? Math.max(220, viewport.height - 170) : naturalHeight;
+  const height = naturalHeight;
   const scale = height / naturalHeight;
   const position = (minute: number) => {
     const band = bands.find(b => minute >= b.start && minute < b.end);
@@ -47,16 +52,16 @@ export function ScheduleTimeline({ dates, shifts, admin, group, renderCard, onAd
     return minute === range.start || minute === range.end || (minute % 120 === 0 && position(minute) - position(range.start) >= 18 && position(range.end) - position(minute) >= 18);
   });
   const teams = (["MANAGERS", "PATROL"] as Group[]).filter(team => group === "ALL" || team === group);
-  return <section className={`schedule-timeline ${compact ? "timeline-fit" : ""} ${desktopDay ? "timeline-day-agenda" : ""} ${dayView ? "timeline-day-view" : ""}`} aria-label="לוח משמרות לפי שעות">
+  return <section className={`schedule-timeline ${compact ? "timeline-fit" : ""} ${desktopDay ? "timeline-list" : ""} ${dayView ? "timeline-day-view" : ""}`} aria-label="לוח משמרות לפי שעות">
     <div className="timeline-toolbar">
-      <span>מי עובד ומתי · לחצו על שם לפירוט השיבוצים</span>
+      <span>כל כרטיס פותח את משמרת המקור · במקטעים עמוסים ניתן לגלול לפירוט נוסף</span>
       <div className="timeline-view-actions">
 
       <button className="timeline-view-toggle" onClick={() => setDayView(!dayView)}>{dayView ? "הצגת כל השבוע" : "מיקוד ביום אחד"}</button>
       </div>
     </div>
     <nav className="timeline-days" aria-label="בחירת יום בלוח">
-      {dates.map(date => <button key={date} aria-pressed={date === activeDate} onClick={() => setChosenDate(date)}>
+      {dates.map(date => <button key={date} aria-pressed={date === activeDate} onClick={() => chooseDate(date)}>
         <span>{dateLabel(date, { weekday: "short" })}</span><strong>{dateLabel(date, { day: "numeric" })}</strong>
         <small>{summaries.filter(item => item.date === date).length} שיב׳</small>
       </button>)}
@@ -84,7 +89,7 @@ export function ScheduleTimeline({ dates, shifts, admin, group, renderCard, onAd
           }
           return <div key={date} className={`timeline-date ${date === activeDate ? "active-date" : ""} ${date === today() ? "timeline-today" : ""}`}>
             <div className="timeline-heading">
-              <button onClick={() => { setChosenDate(date); setDayView(true); }} aria-label={`מיקוד ביום ${date}`}>
+              <button onClick={() => { chooseDate(date); setDayView(true); }} aria-label={`מיקוד ביום ${date}`}>
                 {dateLabel(date, { weekday: "long", day: "numeric", month: "numeric" })}{date === today() && <small>היום</small>}
               </button>
               {admin && <div className="timeline-adds">{teams.map(team => <button key={team} onClick={() => onAdd(date, team)} aria-label={`הוספת משמרת ${GROUP_LABELS[team]} ${date}`}><Plus size={12} />{GROUP_LABELS[team]}</button>)}</div>}
@@ -103,6 +108,6 @@ export function ScheduleTimeline({ dates, shifts, admin, group, renderCard, onAd
         })}
       </div>
     </div>
-    <p className="timeline-note">{desktopDay ? "השעות ליד השם הן שעות העבודה שלו. ‎+1 מציין סיום ביום הבא. לחצו על שורה לפירוט השיבוצים." : "משמרות לילה נשארות ביום שבו התחילו. ‎+1 בסרגל מציין את היום הבא. כל עובד מופיע פעם אחת לכל רצף עבודה בצוות. השעות ליד השם הן שעות העבודה שלו; לחצו לפירוט השיבוצים."}</p>
+    <p className="timeline-note">{desktopDay ? "השעות ליד השם הן שעות העבודה שלו. ‎+1 מציין סיום ביום הבא. לחצו על כרטיס לעריכת המקור." : "משמרות לילה נשארות ביום שבו התחילו. ‎+1 מציין את היום הבא. ניתן לגלול במקטע עמוס; תצוגת רשימה מציגה את כל הפירוט ברצף."}</p>
   </section>;
 }

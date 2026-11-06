@@ -200,12 +200,9 @@ describe("automatic scheduling and candidates", () => {
       DEFAULT_RULES,
     );
     expect(result.issues).toEqual([]);
-    expect(result.shifts[0].assignments).toHaveLength(2);
-    expect(
-      result.shifts[0].assignments.every(
-        (a) => a.start === s.start && a.end === s.end,
-      ),
-    ).toBe(true);
+    expect(result.shifts[0].assignments).toHaveLength(3);
+    expect(result.shifts[0].assignments[0]).toEqual(s.assignments[0]);
+    expect(result.shifts[0].assignments).toContainEqual({ employeeId: "a", start: at("2026-11-01", "12:00"), end: s.end });
   });
   it("never adds ineligible workers and explains unfilled positions", () => {
     const s = shift("s");
@@ -297,7 +294,7 @@ describe("continuous work and longer operations", () => {
   it("replaces malformed existing assignments without crashing automatic scheduling", () => {
     const s = shift("s", "2026-11-01", "08:00", "16:00", ["a"]);
     s.assignments[0].start = "invalid";
-    const result = autoSchedule([s], [employee("a")], DEFAULT_RULES);
+    const result = autoSchedule([s], [employee("a")], DEFAULT_RULES, [], { mode: "repair" });
     expect(result.issues).toEqual([]);
     expect(result.shifts[0].assignments).toEqual([{ employeeId: "a", start: s.start, end: s.end }]);
   });
@@ -354,6 +351,8 @@ it("cannot bypass the continuous-work cap by adjoining separate shifts when mini
   ).toEqual(["ASSIGNMENT_TOO_LONG", "ASSIGNMENT_TOO_LONG"]);
 });
 
+const repair = (...args: Parameters<typeof autoSchedule>) => autoSchedule(args[0], args[1], args[2], args[3], { mode: "repair" });
+
 describe("automatic conflict repair", () => {
   it("repairs overlaps deterministically and preserves unrelated work and metadata", () => {
     const early = shift("early", "2026-11-01", "08:00", "16:00", ["a"]);
@@ -362,14 +361,14 @@ describe("automatic conflict repair", () => {
     const input = [overlapping, untouched, early];
     const before = structuredClone(input);
     const people = ["a", "b", "c"].map((id) => employee(id));
-    const result = autoSchedule(input, people, DEFAULT_RULES);
+    const result = repair(input, people, DEFAULT_RULES);
     expect(result.issues).toEqual([]);
     expect(result.shifts.find((s) => s.id === "early")).toEqual(early);
     expect(result.shifts.find((s) => s.id === "untouched")).toEqual(untouched);
     expect(result.shifts.find((s) => s.id === "overlapping")?.assignments[0].employeeId).toBe("b");
     expect(input).toEqual(before);
-    expect(autoSchedule(input, [...people].reverse(), DEFAULT_RULES)).toEqual(result);
-    expect(autoSchedule(result.shifts, people, DEFAULT_RULES)).toEqual(result);
+    expect(repair(input, [...people].reverse(), DEFAULT_RULES)).toEqual(result);
+    expect(repair(result.shifts, people, DEFAULT_RULES)).toEqual(result);
   });
 
   it("repairs rest conflicts without displacing valid work or changing neighboring context", () => {
@@ -377,7 +376,7 @@ describe("automatic conflict repair", () => {
     const current = shift("current", "2026-11-01", "10:00", "18:00", ["a"]);
     const next = shift("next", "2026-11-02", "10:00", "18:00", ["b"]);
     const before = structuredClone(context);
-    const result = autoSchedule([current, next], [employee("a"), employee("b", { maxWeeklyHours: 8 }), employee("c")], DEFAULT_RULES, context);
+    const result = repair([current, next], [employee("a"), employee("b", { maxWeeklyHours: 8 }), employee("c")], DEFAULT_RULES, context);
     expect(result.issues).toEqual([]);
     expect(result.shifts[0].assignments[0].employeeId).toBe("c");
     expect(result.shifts[1].assignments[0].employeeId).toBe("b");
@@ -387,7 +386,7 @@ describe("automatic conflict repair", () => {
   it("repairs weekly excess while retaining earlier assignments", () => {
     const first = shift("first", "2026-11-01", "08:00", "16:00", ["a"]);
     const later = shift("later", "2026-11-02", "08:00", "16:00", ["a"]);
-    const result = autoSchedule([later, first], [employee("a", { maxWeeklyHours: 8 }), employee("b")], DEFAULT_RULES);
+    const result = repair([later, first], [employee("a", { maxWeeklyHours: 8 }), employee("b")], DEFAULT_RULES);
     expect(result.issues).toEqual([]);
     expect(result.shifts.find((s) => s.id === "first")).toEqual(first);
     expect(result.shifts.find((s) => s.id === "later")?.assignments[0].employeeId).toBe("b");
@@ -397,7 +396,7 @@ describe("automatic conflict repair", () => {
     const s = shift("s", "2026-11-01", "08:00", "16:00", ["missing", "inactive", "wrong", "off", "unavailable"]);
     s.required = 5;
     const people = [employee("inactive", { active: false }), employee("wrong", { groups: ["MANAGERS"] }), employee("off", { timeOff: [{ start: s.start, end: s.end }] }), employee("unavailable", { availability: [{ day: 1, start: "08:00", end: "16:00" }] })];
-    const result = autoSchedule([s], people, DEFAULT_RULES);
+    const result = repair([s], people, DEFAULT_RULES);
     expect(result.shifts[0].assignments).toEqual([]);
     expect(result.issues.map((i) => i.code)).toEqual(["UNDERSTAFFED", "UNFILLED_REASON"]);
   });
@@ -408,7 +407,7 @@ describe("automatic conflict repair", () => {
       { employeeId: "a", start: at("2026-11-01", "07:00"), end: at("2026-11-01", "12:00") },
       { employeeId: "b", start: at("2026-11-01", "10:00"), end: at("2026-11-01", "17:00") },
     ];
-    const result = autoSchedule([s], [employee("a"), employee("b")], DEFAULT_RULES);
+    const result = repair([s], [employee("a"), employee("b")], DEFAULT_RULES);
     expect(result.issues).toEqual([]);
     expect(result.shifts[0].assignments).toEqual([
       { employeeId: "a", start: s.start, end: at("2026-11-01", "12:00") },
@@ -418,8 +417,45 @@ describe("automatic conflict repair", () => {
 
   it("keeps structural problems visible instead of changing shift requirements or times", () => {
     const invalid = { ...shift("invalid"), required: 0 };
-    const result = autoSchedule([invalid], [employee("a")], DEFAULT_RULES);
+    const result = repair([invalid], [employee("a")], DEFAULT_RULES);
     expect(result.shifts).toEqual([invalid]);
     expect(result.issues.map((i) => i.code)).toContain("INVALID_REQUIRED");
+  });
+});
+
+describe("safe scoped automation", () => {
+  it("preserves even invalid existing assignments in default fill mode", () => {
+    const early = shift("early", "2026-11-01", "08:00", "16:00", ["a"]);
+    const overlap = shift("overlap", "2026-11-01", "12:00", "20:00", ["a"]);
+    const result = autoSchedule([early, overlap], [employee("a"), employee("b")], DEFAULT_RULES);
+    expect(result.shifts).toEqual([early, overlap]);
+    expect(result.issues.map((issue) => issue.code)).toContain("OVERLAP");
+  });
+  it("modifies only the selected day and team while validating other commitments", () => {
+    const otherTeam = { ...shift("manager", "2026-11-01", "08:00", "16:00", ["a"]), group: "MANAGERS" as const };
+    const selected = shift("patrol", "2026-11-01", "10:00", "18:00");
+    const otherDay = shift("monday", "2026-11-02");
+    const result = autoSchedule([otherTeam, selected, otherDay], [employee("a", { groups: ["MANAGERS", "PATROL"] }), employee("b")], DEFAULT_RULES, [], {
+      scope: { days: [0], groups: ["PATROL"] },
+    });
+    expect(result.shifts[0]).toEqual(otherTeam);
+    expect(result.shifts[2]).toEqual(otherDay);
+    expect(result.shifts[1].assignments[0].employeeId).toBe("b");
+  });
+  it("keeps locked work verbatim during repair even when it violates availability", () => {
+    const s = shift("locked", "2026-11-01", "08:00", "16:00", ["a"]);
+    s.assignments[0].locked = true;
+    const result = autoSchedule([s], [employee("a", { timeOff: [{ start: s.start, end: s.end }] }), employee("b")], DEFAULT_RULES, [], { mode: "repair" });
+    expect(result.shifts[0]).toEqual(s);
+    expect(result.issues.map((issue) => issue.code)).toContain("TIME_OFF");
+  });
+  it("prioritizes locked commitments before retaining conflicting unlocked assignments", () => {
+    const locked = shift("locked", "2026-11-01", "12:00", "20:00", ["a"]);
+    locked.assignments[0].locked = true;
+    const earlier = shift("earlier", "2026-11-01", "08:00", "16:00", ["a"]);
+    const result = autoSchedule([earlier, locked], [employee("a"), employee("b")], DEFAULT_RULES, [], { mode: "repair" });
+    expect(result.shifts[1]).toEqual(locked);
+    expect(result.shifts[0].assignments[0].employeeId).toBe("b");
+    expect(result.issues).toEqual([]);
   });
 });

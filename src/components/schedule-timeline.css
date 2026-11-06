@@ -77,7 +77,7 @@
   .timeline-shared-row .shift-covered, .timeline-shared-row .shift-warning, .timeline-shared-row .shift-issues { font-size:11px; line-height:15px; }
 }
 
-/* The weekly board answers who and when; validation details live in the editor. */
+/* Warnings remain visible in every view; original records are used for managers. */
 .timeline-shared-row .shift-card { color:#284c3d; gap:5px; }
 .timeline-shared-row .shift-title { color:inherit; font-size:14px; line-height:19px; white-space:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 .timeline-shared-row .shift-time { color:#526b60; font-size:11px; }
@@ -86,14 +86,6 @@
 .timeline-shared-row .shift-people > span { font-size:10px; }
 .timeline-shared-row .shift-card.has-error .shift-title,
 .timeline-shared-row .shift-card.has-warning .shift-title { color:#284c3d; }
-.timeline-day-view .shift-card.has-error,
-.timeline-day-view .shift-card.has-warning,
-.timeline-day-view .shift-card.short-staffed { background:#f4f8f5; border-inline-start-color:#8ba99a; }
-@media (max-width:1100px) {
-  .timeline-shared-row .shift-card.has-error,
-  .timeline-shared-row .shift-card.has-warning,
-  .timeline-shared-row .shift-card.short-staffed { background:#f4f8f5; border-inline-start-color:#8ba99a; }
-}
 .source-choice-list { display:flex; flex-direction:column; gap:10px; }
 .source-choice { display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding:14px; border:1px solid #dce6df; border-radius:10px; background:#f8fbf9; text-align:start; }
 .source-choice small { color:#9b3030; }
@@ -123,3 +115,29 @@
 .timeline-agenda .shift-time { font-size:13px; }
 .timeline-agenda .shift-group { font-size:12px; }
 .timeline-agenda-empty { margin:0; padding:18px; text-align:center; color:#6d7e74; font-size:13px; }
+
+/* Readable content takes priority over fitting every hour into one viewport. */
+.timeline-shared-card { overflow:auto; scrollbar-width:thin; }
+.timeline-shared-rows { flex:none; }
+.timeline-shared-row { flex:none; min-height:190px; container-type:normal; }
+.timeline-shared-row .shift-card { height:auto; min-height:190px; padding:10px; overflow:visible; }
+.timeline-shared-row .shift-title,
+.timeline-shared-row .shift-issue-summary > span { display:block; white-space:normal; overflow:visible; -webkit-line-clamp:unset; overflow-wrap:anywhere; }
+.timeline-shared-row .shift-people { max-height:none; overflow:visible; }
+.timeline-shared-row .shift-people > span { font-size:12px; line-height:18px; overflow-wrap:anywhere; }
+.timeline-shared-row .shift-issues { overflow:visible; font-size:12px; line-height:18px; }
+.timeline-shared-row .shift-card.has-error { background:#fff3f2; border-inline-start-color:#b73c36; }
+.timeline-shared-row .shift-card.has-warning,
+.timeline-shared-row .shift-card.short-staffed { background:#fff9e9; border-inline-start-color:#aa6b06; }
+.timeline-list .timeline-grid { grid-template-columns:repeat(7,minmax(0,1fr)); }
+.timeline-list .timeline-axis { display:none; }
+.timeline-list .timeline-shared-row,
+.timeline-list .shift-card { min-height:0; }
+.timeline-list .timeline-agenda { padding:8px; gap:8px; }
+.timeline-list .timeline-agenda .shift-card { display:flex; align-items:stretch; height:auto; min-height:0; }
+.timeline-list.timeline-day-view .timeline-grid { grid-template-columns:minmax(0,1fr); }
+.timeline-list .timeline-heading { height:auto; min-height:80px; }
+@media (max-width:1100px) {
+  .timeline-list .timeline-grid { grid-template-columns:minmax(0,1fr); }
+  .timeline-toolbar { flex-wrap:wrap; }
+}

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Plus,
   Trash2,
@@ -8,6 +8,8 @@ import {
   Search,
   Check,
   Users,
+  LockKeyhole,
+  UnlockKeyhole,
 } from "lucide-react";
 import { Modal } from "./ui/dialog";
 import { ShiftFields } from "./shift-fields";
@@ -42,6 +44,7 @@ export function ShiftEditor({
   onDelete: (id: string) => Promise<void>;
   busy: boolean;
 }) {
+  const submitPending = useRef(false);
   const [draft, setDraft] = useState<Shift>(structuredClone(shift));
   const [start, setStart] = useState(toInput(shift.start));
   const [end, setEnd] = useState(toInput(shift.end));
@@ -123,6 +126,8 @@ export function ShiftEditor({
     }
   }
   async function save(duplicate = false) {
+    if (busy || submitPending.current) return;
+    submitPending.current = true;
     setError("");
     try {
       const s = fromInput(start),
@@ -133,13 +138,15 @@ export function ShiftEditor({
         );
       await onSave({ ...draft, start: s, end: e }, duplicate);
     } catch (e) {
-      setError((e as Error).message);
+      setError(`לא נשמר. ${e instanceof TypeError ? "לא ניתן להתחבר לשרת. הקלט נשאר כאן; אפשר לנסות לשמור שוב." : (e as Error).message}`);
+    } finally {
+      submitPending.current = false;
     }
   }
   return (
     <Modal
       open
-      onClose={onClose}
+      onClose={() => !busy && !submitPending.current && onClose()}
       title={isNew ? "משמרת חדשה" : "פרטי המשמרת"}
       description="בוחרים יום וסוג משמרת, ושומרים."
       wide
@@ -210,6 +217,7 @@ export function ShiftEditor({
                   {advanced ? (
                     <div className="assignment-times">
                       <input
+                        disabled={assignment.locked || busy}
                         aria-label="תחילת שיבוץ"
                         type="datetime-local"
                         dir="ltr"
@@ -219,6 +227,7 @@ export function ShiftEditor({
                         }
                       />
                       <input
+                        disabled={assignment.locked || busy}
                         aria-label="סיום שיבוץ"
                         type="datetime-local"
                         dir="ltr"
@@ -233,7 +242,9 @@ export function ShiftEditor({
                       {localTime(assignment.start)} – {localTime(assignment.end)}
                     </span>
                   )}
+                  <button type="button" className="assignment-lock" aria-pressed={!!assignment.locked} disabled={busy} aria-label={`${assignment.locked ? "שחרור נעילת" : "נעילת"} שיבוץ ${data.employees.find(person => person.id === assignment.employeeId)?.name ?? "עובד"}`} onClick={() => setDraft(current => ({ ...current, assignments: current.assignments.map((item, assignmentIndex) => assignmentIndex === index ? { ...item, locked: !item.locked } : item) }))}>{assignment.locked ? <LockKeyhole size={14} /> : <UnlockKeyhole size={14} />}{assignment.locked ? "נעול" : "נעילה"}</button>
                   <button
+                    disabled={assignment.locked || busy}
                     className="icon-button danger"
                     aria-label="הסרת עובד מהמשמרת"
                     onClick={() =>
@@ -371,14 +382,9 @@ export function ShiftEditor({
             ))}
           </div>
         )}
-        {error && (
-          <div className="notice error" role="alert">
-            {error}
-          </div>
-        )}
-
       </div>
-      <div className="dialog-footer">
+      <div className="dialog-footer shift-editor-footer">
+        {error && <div className="notice error save-status" role="alert">{error}</div>}
         <div className="button-row">
           {!isNew && (
             <>
@@ -456,12 +462,14 @@ export function ShiftEditor({
               className="button delete-confirm"
               disabled={busy}
               onClick={async () => {
+                if (busy || submitPending.current) return;
+                submitPending.current = true;
                 setDeleteError("");
                 try {
                   await onDelete(shift.id);
                 } catch (e) {
-                  setDeleteError((e as Error).message);
-                }
+                  setDeleteError(`לא נשמר. ${(e as Error).message}`);
+                } finally { submitPending.current = false; }
               }}
             >
               <Trash2 size={17} aria-hidden="true" />

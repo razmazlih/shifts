@@ -23,6 +23,7 @@ model User {
   sessions     Session[]
   audits       Audit[]
   publications Publication[]
+  scheduleProposals ScheduleProposal[]
   createdAt    DateTime      @default(now())
 }
 
@@ -109,4 +110,23 @@ model Template {
   sourceWeek String
   shifts     Json
   createdAt  DateTime @default(now())
+}
+
+// A preview is independent of Week so previewing an empty week creates no draft.
+model ScheduleProposal {
+  id          String   @id @default(cuid())
+  actorId     String
+  actor       User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  weekStart   String
+  revision    Int
+  mode        String
+  scope       Json
+  shifts      Json
+  issues      Json
+  fingerprint String
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([actorId, expiresAt])
 }

@@ -228,3 +228,11 @@ describe("role-sensitive week and adjacent-context projection", () => {
     expect(JSON.stringify(result)).not.toContain("secret-draft");
   });
 });
+
+it("keeps assignment locks private in employee published responses", async () => {
+  const f = fixture();
+  f.visibleShift.assignments[0].locked = true;
+  const result = await getWeekData(weekStart, worker, undefined, f.client);
+  expect(result.shifts[0].assignments[0]).not.toHaveProperty("locked");
+  expect(result.shifts[0].assignments[0].employeeId).toBe("employee-one");
+});

@@ -159,7 +159,7 @@ export function buildTimelineBands(shifts: Shift[]): TimelineBand[] {
       const previousIds = new Set(previous?.map((item) => item.id));
       const continuing = items.filter((item) => previousIds.has(item.id)).length;
       const newStarts = items.length - continuing;
-      return 28 + 80 * newStarts + 30 * continuing;
+      return 32 + 190 * newStarts + 190 * continuing;
     }));
     const height = Math.max((end - start) / 60 * 28, minimumHeight);
     const band = { start, end, top, height, days };

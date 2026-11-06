@@ -37,10 +37,12 @@ test('smart scheduling repairs an overlap in the draft, reports changes and supp
   await expect(page.locator('.calendar-loading')).toBeHidden();
   await page.getByRole('button', { name: 'שיבוץ חכם', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'שיבוץ חכם', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'הפעלת שיבוץ חכם', exact: true }).click();
-  const confirmation = page.getByRole('dialog', { name: 'שיבוץ חכם ותיקון בעיות', exact: true });
-  await expect(confirmation).toContainText('שיבוצים בעייתיים עשויים להשתנות');
-  await confirmation.getByRole('button', { name: 'תיקון ושיבוץ', exact: true }).click();
+  await page.getByRole('radio', { name: /תיקון שיבוצים/ }).check();
+  await page.getByRole('button', { name: 'יצירת הצעה לבדיקה', exact: true }).click();
+  const confirmation = page.getByRole('dialog', { name: 'תצוגה מקדימה לשיבוץ', exact: true });
+  await expect(confirmation).toBeVisible();
+  expect((await request<WeekData>(`/api/weeks?week=${WEEK}`)).shifts).toEqual(before.shifts);
+  await confirmation.getByRole('button', { name: 'החלה על הטיוטה', exact: true }).click();
   await expect(confirmation).toBeHidden();
   await expect(page.locator('.auto-result')).toContainText('הסידור תקין וכל המשמרות מכוסות');
   const after = await request<WeekData>(`/api/weeks?week=${WEEK}`);

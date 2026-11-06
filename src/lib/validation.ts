@@ -145,7 +145,7 @@ export const shiftSchema = z
     assignments: z
       .array(
         z
-          .object({ employeeId: idSchema, start: instant, end: instant })
+          .object({ employeeId: idSchema, start: instant, end: instant, locked: z.boolean().optional() })
           .strict()
           .refine(
             (v) =>
@@ -239,3 +239,15 @@ export const passwordSchema = z
   .min(12)
   .max(72)
   .refine((v) => Buffer.byteLength(v, "utf8") <= 72, "הסיסמה ארוכה מדי");
+
+export const schedulingScopeSchema = z.object({
+  days: z.array(z.number().int().min(0).max(6)).min(1).max(7)
+    .refine((days) => new Set(days).size === days.length, "יש לבחור כל יום פעם אחת"),
+  groups: z.array(group).min(1).max(2)
+    .refine((groups) => new Set(groups).size === groups.length, "יש לבחור כל צוות פעם אחת"),
+}).strict();
+export const schedulingRequestSchema = revisionSchema.extend({
+  mode: z.enum(["fill", "repair"]).default("fill"),
+  scope: schedulingScopeSchema,
+  templateId: idSchema.optional(),
+});

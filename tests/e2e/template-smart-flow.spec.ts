@@ -1,6 +1,6 @@
 import { test, expect, request as requestFactory, type APIRequestContext, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
-import type { Template, WeekData } from "../../src/lib/types";
+import type { SchedulingProposal, Template, WeekData } from "../../src/lib/types";
 
 const WEEK = "2033-02-06";
 
@@ -12,7 +12,7 @@ async function fitsViewport(page: Page) {
   }
 }
 
-test("manager creates a reusable template, fills the week in one action, edits on phone and undoes the complete operation", async ({ page, context, baseURL }) => {
+test("manager creates a reusable template, previews and applies the exact week proposal, edits on phone and undoes the complete operation", async ({ page, context, baseURL }) => {
   test.setTimeout(90_000);
   const origin = new URL(baseURL ?? "http://localhost:3000").origin;
   let templateId: string | undefined;
@@ -56,12 +56,20 @@ test("manager creates a reusable template, fills the week in one action, edits o
     expect(template.shifts.every((shift) => shift.assignments.length === 0)).toBe(true);
     await expect(page.getByRole("dialog", { name: "שיבוץ חכם", exact: true })).toBeVisible();
     await page.getByLabel("תבנית לשבוע", { exact: true }).selectOption(template.id);
-    const appliedResponse = page.waitForResponse((response) => response.url().endsWith("/api/templates/apply") && response.request().method() === "POST");
-    await page.getByRole("button", { name: "הפעלת שיבוץ חכם", exact: true }).click();
+    const proposalResponse = page.waitForResponse((response) => response.url().endsWith("/api/weeks/auto") && response.request().method() === "POST");
+    await page.getByRole("button", { name: "יצירת הצעה לבדיקה", exact: true }).click();
+    const proposal = await (await proposalResponse).json() as SchedulingProposal;
+    expect((await read()).revision).toBe(baseline.revision);
+    expect((await read()).shifts).toEqual([]);
+    await expect(page.getByRole("dialog", { name: "תצוגה מקדימה לשיבוץ", exact: true })).toBeVisible();
+    await page.getByRole("dialog", { name: "תצוגה מקדימה לשיבוץ", exact: true }).screenshot({ path: "output/playwright/scheduling-preview.png", animations: "disabled" });
+    const appliedResponse = page.waitForResponse((response) => response.url().endsWith("/api/weeks/auto/apply") && response.request().method() === "POST");
+    await page.getByRole("button", { name: "החלה על הטיוטה", exact: true }).click();
     const applied = await appliedResponse;
     expect(applied.status(), await applied.text()).toBe(200);
     const result = await applied.json() as WeekData;
     expect(result.revision).toBe(baseline.revision + 1);
+    expect(result.shifts).toEqual(proposal.shifts);
     expect(result.shifts).toHaveLength(template.shifts.length);
     expect(result.shifts.every((shift) => shift.assignments.length > 0)).toBe(true);
     expect(result.issues).toEqual([]);
@@ -69,6 +77,7 @@ test("manager creates a reusable template, fills the week in one action, edits o
     expect(result.publishedRevision).toBe(baseline.publishedRevision);
     await expect(page.locator(".auto-result")).toContainText("הסידור תקין וכל המשמרות מכוסות");
     await fitsViewport(page);
+    await expect(page.locator(".toast")).toBeHidden();
     await page.screenshot({ path: "output/playwright/template-smart-mobile.png", fullPage: true });
     await page.setViewportSize({ width: 1440, height: 1100 });
     await fitsViewport(page);
@@ -76,7 +85,7 @@ test("manager creates a reusable template, fills the week in one action, edits o
     await mkdir("docs/images", { recursive: true });
     await page.getByRole("button", { name: "שיבוץ חכם", exact: true }).click();
     await page.getByRole("dialog", { name: "שיבוץ חכם", exact: true }).screenshot({ path: "docs/images/manager-quick-week.png" });
-    await page.getByRole("button", { name: "סגירה", exact: true }).click();
+    await page.getByRole("button", { name: "ביטול", exact: true }).click();
 
     worker = await requestFactory.newContext({ baseURL: origin });
     const login = await worker.post("/api/auth/login", { data: { email: "employee@demo.local", password: process.env.DEMO_EMPLOYEE_PASSWORD ?? "DemoWorker!2026" }, headers: { Origin: origin } });

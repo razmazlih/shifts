@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
+  // Allow an isolated local test server alongside an existing development app.
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
   output: "standalone",
   poweredByHeader: false,
   serverExternalPackages: ["@prisma/client", "bcryptjs", "exceljs"],

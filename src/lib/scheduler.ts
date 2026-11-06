@@ -1,5 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
-import type { Assignment, Employee, Issue, Rules, Shift } from "./types";
+import type { Assignment, Employee, Issue, Rules, Shift, SchedulingMode, SchedulingScope } from "./types";
+import { coverageGaps, coverageSpans } from "./coverage";
 import { TIME_ZONE, addDays, localDate, localToISO, weekStart } from "./time";
 
 export const DEFAULT_RULES: Rules = {
@@ -110,33 +111,8 @@ function available(employee: Employee, work: Interval): boolean {
   }
   return false;
 }
-function coverage(
-  shift: Shift,
-): { start: number; end: number; count: number }[] {
-  const bounds = interval(shift.start, shift.end);
-  if (!bounds) return [];
-  const assignments = shift.assignments
-    .map((a) => interval(a.start, a.end))
-    .filter((a): a is Interval => !!a);
-  const points = [
-    ...new Set([
-      bounds.start,
-      bounds.end,
-      ...assignments.flatMap((a) => [
-        Math.max(bounds.start, Math.min(bounds.end, a.start)),
-        Math.max(bounds.start, Math.min(bounds.end, a.end)),
-      ]),
-    ]),
-  ].sort((a, b) => a - b);
-  return points
-    .slice(0, -1)
-    .map((start, i) => ({
-      start,
-      end: points[i + 1],
-      count: assignments.filter(
-        (a) => a.start <= start && a.end >= points[i + 1],
-      ).length,
-    }));
+function coverage(shift: Shift): { start: number; end: number; count: number }[] {
+  return coverageSpans(shift);
 }
 
 export function validateSchedule(
@@ -234,14 +210,8 @@ export function validateSchedule(
         add("TIME_OFF", "השיבוץ חופף להיעדרות", shift.id, person.id);
     }
     const spans = coverage(shift);
-    if (spans.some((s) => s.count < shift.required))
-      add(
-        "UNDERSTAFFED",
-        "חסרים עובדים בחלק משעות המשמרת",
-        shift.id,
-        undefined,
-        "warning",
-      );
+    for (const gap of coverageGaps(shift))
+      add("UNDERSTAFFED", gap.message, shift.id, undefined, "warning");
     if (spans.some((s) => s.count > shift.required))
       add(
         "OVERSTAFFED",
@@ -380,6 +350,7 @@ function mergeAssignments(assignments: Assignment[]): Assignment[] {
     if (
       last &&
       last.employeeId === a.employeeId &&
+      !last.locked && !a.locked &&
       instant(last.end) === instant(a.start)
     )
       last.end = a.end;
@@ -451,6 +422,7 @@ function repairAssignments(
   employees: Employee[],
   rules: Rules,
   context: Shift[],
+  selected: Set<string>,
 ): Set<string> {
   const structuralCodes = new Set([
     "DUPLICATE_SHIFT", "INVALID_TIME", "SHIFT_TOO_LONG",
@@ -464,10 +436,10 @@ function repairAssignments(
       .map((issue) => issue.shiftId),
   );
   const pending = shifts
-    .filter((shift) => !invalid.has(shift.id))
+    .filter((shift) => selected.has(shift.id) && !invalid.has(shift.id))
     .flatMap((shift) => shift.assignments.map((assignment, index) => ({
       shift, assignment, index,
-    })))
+    })).filter(({ assignment }) => !assignment.locked))
     .sort((a, b) =>
       (interval(a.assignment.start, a.assignment.end)?.start ?? Infinity) -
         (interval(b.assignment.start, b.assignment.end)?.start ?? Infinity) ||
@@ -476,7 +448,8 @@ function repairAssignments(
       a.index - b.index,
     );
   for (const shift of shifts)
-    if (!invalid.has(shift.id)) shift.assignments = [];
+    if (selected.has(shift.id) && !invalid.has(shift.id))
+      shift.assignments = shift.assignments.filter((assignment) => assignment.locked);
   for (const { shift, assignment } of pending) {
     const time = interval(assignment.start, assignment.end);
     const bounds = interval(shift.start, shift.end)!;
@@ -506,12 +479,20 @@ export function autoSchedule(
   employees: Employee[],
   rules: Rules,
   context: Shift[] = [],
+  options: { mode?: SchedulingMode; scope?: SchedulingScope } = {},
 ): { shifts: Shift[]; issues: Issue[] } {
   const result = shifts.map((s) => ({
     ...s,
     assignments: s.assignments.map((a) => ({ ...a })),
   }));
-  const invalid = repairAssignments(result, employees, rules, context);
+  const mode = options.mode ?? "fill";
+  const selected = new Set(result.filter((shift) => inSchedulingScope(shift, options.scope)).map((shift) => shift.id));
+  const invalid = mode === "repair"
+    ? repairAssignments(result, employees, rules, context, selected)
+    : new Set<string>();
+  // Existing assignment objects are immutable in fill mode, including their order.
+  // New pieces may touch old ones but are kept separate in the saved proposal.
+  const originals = new Map(result.map((shift) => [shift.id, shift.assignments.length]));
   const unfilled: Issue[] = [];
   for (const shift of [...result].sort(
     (a, b) =>
@@ -519,7 +500,7 @@ export function autoSchedule(
         (interval(b.start, b.end)?.start ?? 0) || a.id.localeCompare(b.id),
   )) {
     if (
-      invalid.has(shift.id) ||
+      !selected.has(shift.id) || invalid.has(shift.id) ||
       !interval(shift.start, shift.end) ||
       shift.assignments.some((a) => !interval(a.start, a.end)) ||
       !Number.isInteger(shift.required) ||
@@ -533,14 +514,18 @@ export function autoSchedule(
         const options = employees.map((employee) => {
           const trial = {
             ...shift,
-            assignments: mergeAssignments([
-              ...shift.assignments,
-              {
-                employeeId: employee.id,
-                start: iso(span.start),
-                end: iso(span.end),
-              },
-            ]),
+            assignments: mode === "fill"
+              ? [
+                  ...shift.assignments.slice(0, originals.get(shift.id)),
+                  ...mergeAssignments([
+                    ...shift.assignments.slice(originals.get(shift.id)),
+                    { employeeId: employee.id, start: iso(span.start), end: iso(span.end) },
+                  ]),
+                ]
+              : mergeAssignments([
+                  ...shift.assignments,
+                  { employeeId: employee.id, start: iso(span.start), end: iso(span.end) },
+                ]),
           };
           const errors = validateSchedule(
             [trial],
@@ -594,4 +579,15 @@ export function autoSchedule(
       ...unfilled,
     ],
   };
+}
+
+/** Scope limits mutations only; validation still sees the entire schedule/context. */
+export function inSchedulingScope(shift: Shift, scope?: SchedulingScope): boolean {
+  if (!scope) return true;
+  try {
+    const day = Temporal.Instant.from(shift.start).toZonedDateTimeISO(TIME_ZONE).dayOfWeek % 7;
+    return scope.days.includes(day) && scope.groups.includes(shift.group);
+  } catch {
+    return false;
+  }
 }

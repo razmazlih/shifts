@@ -20,7 +20,7 @@ export async function api<T>(
       window.location.assign(new URL("/login", window.location.origin));
     throw new Error(
       response.status === 409
-        ? "הלוח עודכן בחלון אחר. השינויים שלך לא נשמרו. רעננו את הלוח ונסו שוב."
+        ? (data.error || "הנתונים השתנו. השינויים שלך לא נשמרו. יש לרענן ולנסות שוב.")
         : [
             data.error || "הפעולה לא הושלמה. נסו שוב.",
             ...(data.issues || [])

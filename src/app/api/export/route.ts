@@ -20,13 +20,16 @@ export const GET = route(async (request) => {
   const user = await requireUser(true);
   const params = new URL(request.url).searchParams;
   const week = weekSchema.parse(params.get("week"));
-  const version = params.get("version") ?? "draft";
+  const version = params.get("version") ?? "published";
   if (version !== "draft" && version !== "published")
     throw new ApiError(400, "גרסת ייצוא לא תקינה");
   const data = await getWeekData(week, user, version);
+  if (version === "published" && data.publishedRevision === null)
+    throw new ApiError(409, "אין סידור שפורסם לשבוע הזה. ניתן לבחור במפורש ייצוא טיוטה.");
   const names = new Map(data.employees.map((e) => [e.id, e.name]));
   const book = new ExcelJS.Workbook();
   book.creator = "משמרת";
+  book.subject = version === "draft" ? "טיוטת מנהל — לא פורסמה לצוות" : "הסידור האחרון שפורסם לצוות";
   book.created = new Date();
   const sheet = book.addWorksheet("סידור שבועי", {
     views: [{ rightToLeft: true }],
@@ -44,7 +47,7 @@ export const GET = route(async (request) => {
   ];
   sheet.mergeCells("A1:H1");
   sheet.getCell("A1").value =
-    `משמרת · ${week} עד ${addDays(week, 6)} · ${version === "draft" ? "טיוטה" : "סידור שפורסם"}`;
+    `משמרת · ${week} עד ${addDays(week, 6)} · ${version === "draft" ? "טיוטת מנהל — לא פורסמה לצוות" : "סידור שפורסם"}`;
   sheet.getRow(1).height = 32;
   sheet.getCell("A1").font = {
     bold: true,
@@ -124,6 +127,20 @@ export const GET = route(async (request) => {
     { header: "תחילת שיבוץ", width: 24 },
     { header: "סיום שיבוץ", width: 24 },
   ];
+  details.insertRow(1, [version === "draft" ? "טיוטת מנהל — לא פורסמה לצוות" : "סידור שפורסם לצוות"]);
+  details.mergeCells("A1:H1");
+  details.getRow(1).height = 28;
+  details.getCell("A1").alignment = { horizontal: "right" };
+  details.getCell("A1").font = { bold: true, size: 16 };
+  details.getRow(2).font = { bold: true };
+  for (const worksheet of [sheet, details]) {
+    worksheet.headerFooter.oddHeader = version === "draft" ? "&C&16טיוטת מנהל — לא פורסמה לצוות" : "&Cסידור שפורסם לצוות";
+    worksheet.pageSetup.printTitlesRow = "1:2";
+    if (version === "draft") {
+      worksheet.getCell("A1").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFE8C1" } };
+      worksheet.getCell("A1").font = { ...worksheet.getCell("A1").font, color: { argb: "FF754500" } };
+    }
+  }
   const civil = (iso: string) => `${localDate(iso)} ${localTime(iso)}`;
   for (const s of data.shifts.toSorted(
     (a, b) => Date.parse(a.start) - Date.parse(b.start),

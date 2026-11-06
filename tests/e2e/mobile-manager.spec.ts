@@ -157,7 +157,7 @@ test("360px manager can create, assign, edit, publish and open employee manageme
       .getByRole("button", { name: "פרסום לצוות", exact: true })
       .click();
     const confirmation = page.getByRole("dialog", {
-      name: "לפרסם את השבוע לצוות?",
+      name: "בדיקה לפני פרסום",
       exact: true,
     });
     await confirmation

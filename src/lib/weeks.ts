@@ -2,12 +2,10 @@ import { Prisma, type Employee as DbEmployee } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
 import { ApiError } from "./validation";
-import { DEFAULT_RULES, validateSchedule, autoSchedule } from "./scheduler";
+import { DEFAULT_RULES, validateSchedule } from "./scheduler";
 import { addDays, localDate, shiftByDays } from "./time";
 import type {
-  AutoScheduleSummary,
   Employee,
-  Issue,
   Rules,
   SessionUser,
   Shift,
@@ -94,7 +92,7 @@ export async function getWeekData(
           start: s.start,
           end: s.end,
           required: s.required,
-          assignments: s.assignments,
+          assignments: s.assignments.map(({ employeeId, start, end }) => ({ employeeId, start, end })),
         })),
     revision: published ? (publication?.revision ?? 0) : (week?.revision ?? 0),
     publishedRevision: week?.publishedRevision ?? null,
@@ -127,6 +125,7 @@ export async function mutateWeek(
   action: string | (() => string),
   transform: (shifts: Shift[], tx: Tx) => Promise<Shift[]>,
   publish = false,
+  publicationOptions: { allowUnderstaffed?: boolean } = {},
 ): Promise<WeekData> {
   if (user.role !== "ADMIN") throw new ApiError(403, "הפעולה מותרת למנהל בלבד");
   return db.$transaction(
@@ -167,6 +166,7 @@ export async function mutateWeek(
       if (shifts.some((s) => s.assignments.some((a) => !ids.has(a.employeeId))))
         throw new ApiError(400, "עובד משובץ לא נמצא במערכת");
       const rules = await getRules(tx);
+      let shortageOverride = false;
       if (publish) {
         const issues = validateSchedule(
           shifts,
@@ -180,6 +180,9 @@ export async function mutateWeek(
             "לא ניתן לפרסם שיבוץ עם התנגשויות. יש לתקן את השגיאות.",
             issues,
           );
+        shortageOverride = issues.some((issue) => issue.code === "UNDERSTAFFED");
+        if (shortageOverride && !publicationOptions.allowUnderstaffed)
+          throw new ApiError(422, "נותרו חוסרים. נדרש אישור מפורש לפרסום עם חוסר.", issues);
       }
       const nextRevision = revision + 1;
       const now = new Date();
@@ -212,7 +215,7 @@ export async function mutateWeek(
         data: {
           weekStart,
           revision: nextRevision,
-          action: typeof action === "function" ? action() : action,
+          action: publish && shortageOverride ? "PUBLISH_WITH_SHORTAGE_OVERRIDE" : typeof action === "function" ? action() : action,
           beforeShifts: asJson(before),
           afterShifts: asJson(shifts),
           actorId: user.id,
@@ -247,51 +250,6 @@ export function moveShifts(
     throw error;
   }
 }
-export async function autoWeek(
-  user: SessionUser,
-  week: string,
-  revision: number,
-  prepare?: (shifts: Shift[], tx: Tx) => Promise<Shift[]>,
-) {
-  let reasons: Issue[] = [];
-  let autoSummary: AutoScheduleSummary | undefined;
-  const result = await mutateWeek(
-    user,
-    week,
-    revision,
-    prepare ? "TEMPLATE_AUTO" : "AUTO",
-    async (current, tx) => {
-      const shifts = prepare ? await prepare(current, tx) : current;
-      if (!shifts.length)
-        throw new ApiError(400, "יש ליצור משמרות לפני השיבוץ האוטומטי");
-      const employees = (await tx.employee.findMany()).map(employeeData);
-      const rules = await getRules(tx);
-      const context = await neighborContext(week, tx);
-      const beforeErrors = validateSchedule(shifts, employees, rules, context)
-        .filter((issue) => issue.severity === "error");
-      const scheduled = autoSchedule(shifts, employees, rules, context);
-      const remaining = scheduled.issues.filter((issue) => issue.severity === "error");
-      const key = (issue: Issue) => JSON.stringify([issue.shiftId, issue.employeeId, issue.code, issue.message]);
-      const remainingKeys = new Set(remaining.map(key));
-      autoSummary = {
-        changedShiftIds: scheduled.shifts.filter((shift, index) =>
-          JSON.stringify(shift.assignments) !== JSON.stringify(shifts[index].assignments)
-        ).map((shift) => shift.id),
-        resolvedErrors: beforeErrors.filter((issue) => !remainingKeys.has(key(issue))).length,
-        remainingErrors: remaining.length,
-        unfilledShifts: new Set(scheduled.issues.filter((issue) => issue.code === "UNDERSTAFFED").map((issue) => issue.shiftId)).size,
-      };
-      reasons = scheduled.issues;
-      return scheduled.shifts;
-    },
-  );
-  const seen = new Set(result.issues.map((issue) => JSON.stringify(issue)));
-  result.issues.push(
-    ...reasons.filter((issue) => !seen.has(JSON.stringify(issue))),
-  );
-  return { ...result, autoSummary };
-}
-
 /** Walk the edit history, skipping publication events and revisions already undone. */
 export function undoTarget<T extends { revision: number; action: string }>(
   history: T[],
@@ -305,7 +263,7 @@ export function undoTarget<T extends { revision: number; action: string }>(
     .sort((a, b) => b.revision - a.revision)
     .find(
       (h) =>
-        h.action !== "PUBLISH" &&
+        !h.action.startsWith("PUBLISH") &&
         h.action !== "SEED" &&
         !h.action.startsWith("UNDO") &&
         !undone.has(h.revision),

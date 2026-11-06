@@ -6,7 +6,7 @@ import {
 } from "@playwright/test";
 import ExcelJS from "exceljs";
 import { localToISO } from "../../src/lib/time";
-import type { Employee, Shift, WeekData } from "../../src/lib/types";
+import type { Employee, Shift, WeekData, SchedulingProposal } from "../../src/lib/types";
 
 const baseURL = process.env.BASE_URL ?? "http://localhost:3000";
 const week = "2030-06-02";
@@ -33,9 +33,10 @@ async function save(shifts: Shift[], date = week) {
 }
 async function publish(date = week) {
   const w = await read(admin, date);
+  const review = await (await admin.get(`/api/weeks/publish?week=${date}`)).json();
   const r = await admin.post(
     "/api/weeks/publish",
-    data({ weekStart: date, revision: w.revision }),
+    data({ weekStart: date, revision: w.revision, reviewToken: review.reviewToken }),
   );
   expect(r.status(), await r.text()).toBe(200);
   return r.json() as Promise<WeekData>;
@@ -152,7 +153,7 @@ test("overlap is visible in the draft and blocks publication without changing em
   expect(w.issues.some((i) => i.code === "OVERLAP")).toBe(true);
   const r = await admin.post(
     "/api/weeks/publish",
-    data({ weekStart: week, revision: w.revision }),
+    data({ weekStart: week, revision: w.revision, reviewToken: (await (await admin.get(`/api/weeks/publish?week=${week}`)).json()).reviewToken }),
   );
   expect(r.status()).toBe(422);
   expect((await read(worker)).shifts).toEqual(baseline.shifts);
@@ -205,6 +206,22 @@ test("optimistic concurrency permits one writer and rejects a stale overwrite", 
   ]);
   expect(results.map((r) => r.status()).sort()).toEqual([200, 409]);
 });
+test("shortage publication requires recorded consent and a stale publication review is rejected", async () => {
+  const date = "2032-03-07";
+  const s: Shift = { ...shift("publication-shortage"), start: localToISO(date, "08:00"), end: localToISO(date, "12:00"), assignments: [] };
+  const saved = await save([s], date);
+  const review = await (await admin.get(`/api/weeks/publish?week=${date}`)).json();
+  const input = { weekStart: date, revision: saved.revision, reviewToken: review.reviewToken };
+  expect((await admin.post("/api/weeks/publish", data(input))).status()).toBe(422);
+  expect((await read(worker, date)).shifts).toEqual([]);
+  const published = await admin.post("/api/weeks/publish", data({ ...input, allowUnderstaffed: true }));
+  expect(published.status(), await published.text()).toBe(200);
+  const history = await (await admin.get(`/api/history?week=${date}`)).json();
+  expect(history.history[0].action).toBe("PUBLISH_WITH_SHORTAGE_OVERRIDE");
+  const edited = await save([{ ...s, title: "טיוטה נוספת" }], date);
+  expect((await admin.post("/api/weeks/publish", data({ ...input, revision: edited.revision, allowUnderstaffed: true }))).status()).toBe(409);
+  expect((await read(worker, date)).shifts[0].title).toBe(s.title);
+});
 test("copy and templates preserve overnight civil times; auto scheduling only changes the draft", async () => {
   await save([shift()]);
   const target = "2030-06-16";
@@ -238,11 +255,15 @@ test("copy and templates preserve overnight civil times; auto scheduling only ch
   w = await read(admin, target);
   response = await admin.post(
     "/api/weeks/auto",
-    data({ weekStart: target, revision: w.revision }),
+    data({ weekStart: target, revision: w.revision, scope: { days: [0,1,2,3,4,5,6], groups: ["MANAGERS","PATROL"] } }),
   );
   expect(response.status()).toBe(200);
-  const proposed: WeekData = await response.json();
+  const proposed: SchedulingProposal = await response.json();
   expect(proposed.shifts[0].assignments).toHaveLength(1);
+  expect((await read(admin, target)).shifts).toEqual(w.shifts);
+  const applied = await admin.post("/api/weeks/auto/apply", data({ proposalId: proposed.id }));
+  expect(applied.status()).toBe(200);
+  expect((await applied.json()).shifts).toEqual(proposed.shifts);
   expect(proposed.issues.filter((i) => i.severity === "error")).toEqual([]);
   expect((await read(worker, target)).shifts).toEqual([]);
 });

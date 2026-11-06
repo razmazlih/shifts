@@ -1,6 +1,7 @@
 export type Group = "MANAGERS" | "PATROL";
 export type Role = "ADMIN" | "EMPLOYEE";
 export interface Assignment {
+  locked?: boolean;
   employeeId: string;
   start: string;
   end: string;
@@ -92,3 +93,26 @@ export const GROUP_LABELS: Record<Group, string> = {
   MANAGERS: "אחמ״שים",
   PATROL: "סיורים",
 };
+
+export type SchedulingMode = "fill" | "repair";
+export interface SchedulingScope {
+  days: number[];
+  groups: Group[];
+}
+export interface SchedulingProposal {
+  id: string;
+  weekStart: string;
+  revision: number;
+  mode: SchedulingMode;
+  scope: SchedulingScope;
+  shifts: Shift[];
+  changes: { shiftId: string; before: Shift | null; after: Shift | null }[];
+  issues: Issue[];
+  summary: {
+    addedAssignments: number;
+    changedAssignments: number;
+    unchangedAssignments: number;
+    unfilledShifts: number;
+  };
+  expiresAt: string;
+}

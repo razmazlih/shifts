@@ -33,6 +33,10 @@ async function login(page: Page, email: string, password: string) {
       level: 1,
     }),
   ).toBeVisible();
+  if (email.includes("employee")) {
+    await page.locator(".employee-home").getByRole("button", { name: "לוח הצוות", exact: true }).click();
+    await page.getByRole("button", { name: "המשמרות שלי", exact: true }).click();
+  }
   await expect(page.getByLabel("בחירת שבוע", { exact: true })).toBeVisible();
 }
 async function request<T>(
@@ -152,7 +156,7 @@ test.describe("manager publication and employee live schedule UI", () => {
       managerContext.request,
       "/api/weeks/publish",
       "POST",
-      { weekStart: WEEK, revision: saved.revision },
+      { weekStart: WEEK, revision: saved.revision, reviewToken: (await request<{reviewToken:string}>(managerContext.request, `/api/weeks/publish?week=${WEEK}`)).reviewToken },
     );
     expect(published.issues.filter((i) => i.severity === "error")).toEqual([]);
     await chooseWeek(manager);
@@ -204,10 +208,13 @@ test.describe("manager publication and employee live schedule UI", () => {
       .getByRole("button", { name: "פרסום לצוות", exact: true })
       .click();
     const confirmation = manager.getByRole("dialog", {
-      name: "לפרסם את השבוע לצוות?",
+      name: "בדיקה לפני פרסום",
       exact: true,
     });
     await expect(confirmation).toBeVisible();
+    await expect(confirmation.getByText("עובדים שהשינוי נוגע להם", { exact: true })).toBeVisible();
+    await mkdir("output/playwright/stage-a", { recursive: true });
+    await confirmation.screenshot({ path: "output/playwright/stage-a/publication-review.png", animations: "disabled" });
     const publishResponse = manager.waitForResponse(
       (r) =>
         r.url().endsWith("/api/weeks/publish") &&
@@ -311,7 +318,7 @@ test.describe("manager publication and employee live schedule UI", () => {
       .getByRole("button", { name: "פרסום לצוות", exact: true })
       .click();
     await manager
-      .getByRole("dialog", { name: "לפרסם את השבוע לצוות?", exact: true })
+      .getByRole("dialog", { name: "בדיקה לפני פרסום", exact: true })
       .getByRole("button", { name: "פרסום לצוות", exact: true })
       .click();
     await expect(manager.getByRole("dialog")).toHaveCount(0);

@@ -33,14 +33,15 @@ async function save(shifts: Shift[], client = adminContext.request) {
 }
 async function publish(shifts: Shift[], client = adminContext.request) {
   const saved = await save(shifts, client);
-  return request<WeekData>(client, "/api/weeks/publish", "POST", { weekStart: WEEK, revision: saved.revision });
+  const review = await request<{reviewToken:string}>(client, `/api/weeks/publish?week=${WEEK}`);
+  return request<WeekData>(client, "/api/weeks/publish", "POST", { weekStart: WEEK, revision: saved.revision, reviewToken: review.reviewToken });
 }
 async function openReport(page: Page, manager: boolean) {
   page.on("pageerror", (error) => console.error(`Monthly report page error: ${error.message}`));
   page.on("requestfailed", (entry) => { if (entry.url().includes("/_next/")) console.error(`Monthly report chunk failed: ${entry.url()} ${entry.failure()?.errorText}`); });
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText(manager ? "לוח משמרות" : "המשמרות שלי");
-  await page.getByRole("button", { name: manager ? "סיכום חודשי" : "החודש שלי", exact: true }).click();
+  await (manager ? page.getByRole("button", { name: "סיכום חודשי", exact: true }) : page.locator(".employee-home").getByRole("button", { name: "החודש שלי", exact: true })).click();
   await page.getByLabel("בחירת חודש", { exact: true }).fill(MONTH);
   await expect(page.locator(".report-stats")).toBeVisible();
 }

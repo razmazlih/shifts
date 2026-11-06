@@ -117,7 +117,7 @@ test("employee accounts enforce roles, synchronize edits, protect private fields
     const draft: WeekData = await saved.json();
     const published = await admin.post(
       "/api/weeks/publish",
-      data({ weekStart: week, revision: draft.revision }),
+      data({ weekStart: week, revision: draft.revision, reviewToken: (await (await admin.get(`/api/weeks/publish?week=${week}`)).json()).reviewToken }),
     );
     expect(published.status(), await published.text()).toBe(200);
     publishedShifts = (await published.json()).shifts;

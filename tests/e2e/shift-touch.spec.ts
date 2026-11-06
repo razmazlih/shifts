@@ -103,6 +103,7 @@ test('phone shift pickers create an overnight shift without typing and preserve 
     const refreshed = page.waitForResponse(r => r.url().includes(`/api/weeks?week=${WEEK}`) && r.request().method() === 'GET');
     await page.getByRole('button', { name: 'רענון הלוח', exact: true }).click();
     await refreshed;
+    await page.locator(".timeline-days button").nth(6).click();
     await page.locator('button.shift-card').filter({ has: page.getByText(PRECISE_TITLE, { exact: true }) }).click();
     const edit = page.getByRole('dialog', { name: 'פרטי המשמרת', exact: true });
     await expectTouchFields(edit);
