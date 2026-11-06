@@ -744,15 +744,14 @@ export function ScheduleApp() {
                   )}
                 </div>
                 {admin && <section className="week-workflow" aria-label="הכנת שבוע מהירה">
-                  <div className="workflow-heading"><h3>הכנת השבוע</h3><p>משבצים, בודקים ומפרסמים לצוות.</p></div>
                   <div className="workflow-controls">
-                    <label>מה משבצים השבוע?
+                    <label><span>תבנית</span>
                       <select aria-label="תבנית לשבוע" value={selectedTemplate} disabled={busy || loading} onChange={(e) => setSelectedTemplate(e.target.value)}>
                         <option value="">המשמרות שכבר בלוח</option>
                         {templates.map((template) => <option key={template.id} value={template.id}>{template.name} · {template.shifts.length} משמרות{new Set(template.shifts.map((shift) => localDate(shift.start))).size === 1 ? " · תבנית יומית" : ""}</option>)}
                       </select>
                     </label>
-                    {templates.filter((template) => template.id === selectedTemplate && new Set(template.shifts.map((shift) => localDate(shift.start))).size === 1).map((template) => <label key={template.id}>לאיזה יום?
+                    {templates.filter((template) => template.id === selectedTemplate && new Set(template.shifts.map((shift) => localDate(shift.start))).size === 1).map((template) => <label key={template.id}><span>יום יעד</span>
                       <select aria-label="יעד התבנית היומית" value={templateTargets[template.id] ?? String(templateSourceWeekday(template))} disabled={busy || loading} onChange={(e) => setTemplateTargets((current) => ({ ...current, [template.id]: e.target.value }))}>
                         {dates.map((date, day) => <option key={date} value={day}>{fmtDate(date, { weekday: "long" })}</option>)}<option value="all">כל השבוע</option>
                       </select>
@@ -761,7 +760,7 @@ export function ScheduleApp() {
                     <button className="button primary workflow-smart" aria-label="שיבוץ חכם" disabled={busy || loading || (!selectedTemplate && !data?.shifts.length)} onClick={runSmartSchedule}>{busy ? <LoaderCircle size={18} className="spin" /> : <Sparkles size={18} />}{busy ? "מכין את השבוע…" : "שיבוץ חכם"}</button>
                   </div>
                   {templatesError && <p className="notice error" role="alert">לא ניתן לטעון תבניות: {templatesError}<button className="text-button" onClick={() => void openPanel("templates")}>ניסיון נוסף</button></p>}
-                  <p className="workflow-hint">{selectedTemplate ? "התבנית תוחל והעובדים ישובצו בפעולה אחת." : data?.shifts.length ? "השיבוץ פועל על כל השבוע, גם כשמוצג סינון." : "שבוע ריק? צרו תבנית עם שעות וימים, ואז לחצו על שיבוץ חכם."} השיבוץ מכבד זמינות ומכסות; חוסרים יוצגו לטיפול.</p>
+                  <details className="workflow-help"><summary>איך זה עובד?</summary><p className="workflow-hint">{selectedTemplate ? "התבנית תוחל והעובדים ישובצו בפעולה אחת." : data?.shifts.length ? "השיבוץ פועל על כל השבוע, גם כשמוצג סינון." : "שבוע ריק? צרו תבנית עם שעות וימים, ואז לחצו על שיבוץ חכם."} השיבוץ מכבד זמינות ומכסות; חוסרים יוצגו לטיפול. לאחר השיבוץ בודקים את המשמרות ומפרסמים לצוות.</p></details>
                 </section>}
                 {admin && <div className="calendar-subbar">
                   <div className="filters">
