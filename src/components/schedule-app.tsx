@@ -87,6 +87,7 @@ export function ScheduleApp() {
   const [panel, setPanel] = useState<"history" | "templates" | null>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState("");
+  const [smartOpen, setSmartOpen] = useState(false);
   const [templateTab, setTemplateTab] = useState<"new" | "board">("new");
   const [attentionOnly, setAttentionOnly] = useState(false);
   const [templatesError, setTemplatesError] = useState("");
@@ -732,7 +733,7 @@ export function ScheduleApp() {
                       <Plus size={18} />
                       משמרת חדשה
                     </button>
-                    <button className="button primary workflow-smart" aria-label="שיבוץ חכם" disabled={busy || loading || (!selectedTemplate && !data?.shifts.length)} onClick={runSmartSchedule}>{busy ? <LoaderCircle size={18} className="spin" /> : <Sparkles size={18} />}{busy ? "מכין את השבוע…" : "שיבוץ חכם"}</button>
+                    <button className="button primary workflow-smart" aria-label="שיבוץ חכם" disabled={busy || loading} onClick={() => setSmartOpen(true)}>{busy ? <LoaderCircle size={18} className="spin" /> : <Sparkles size={18} />}{busy ? "מכין את השבוע…" : "שיבוץ חכם"}</button>
                     </div>
                   )}
                   {!admin && (
@@ -789,25 +790,8 @@ export function ScheduleApp() {
                 </div>
                 }
                 {admin && (
-                  <details className="schedule-actions" aria-label="פעולות לניהול השבוע"><summary>כלי שיבוץ וניהול השבוע <span className="schedule-tools-caption">שיבוץ חכם, תבניות והעתקה</span></summary>
-                <section className="week-workflow" aria-label="הכנת שבוע מהירה">
-                  <div className="workflow-controls">
-                    <label><span>תבנית</span>
-                      <select aria-label="תבנית לשבוע" value={selectedTemplate} disabled={busy || loading} onChange={(e) => setSelectedTemplate(e.target.value)}>
-                        <option value="">המשמרות שכבר בלוח</option>
-                        {templates.map((template) => <option key={template.id} value={template.id}>{template.name} · {template.shifts.length} משמרות{new Set(template.shifts.map((shift) => localDate(shift.start))).size === 1 ? " · תבנית יומית" : ""}</option>)}
-                      </select>
-                    </label>
-                    {templates.filter((template) => template.id === selectedTemplate && new Set(template.shifts.map((shift) => localDate(shift.start))).size === 1).map((template) => <label key={template.id}><span>יום יעד</span>
-                      <select aria-label="יעד התבנית היומית" value={templateTargets[template.id] ?? String(templateSourceWeekday(template))} disabled={busy || loading} onChange={(e) => setTemplateTargets((current) => ({ ...current, [template.id]: e.target.value }))}>
-                        {dates.map((date, day) => <option key={date} value={day}>{fmtDate(date, { weekday: "long" })}</option>)}<option value="all">כל השבוע</option>
-                      </select>
-                    </label>)}
-                    <button className="button secondary" disabled={busy || loading} onClick={() => { setTemplateTab("new"); void openPanel("templates"); }}><Plus size={17} />יצירת תבנית</button>
-                  </div>
-                  {templatesError && <p className="notice error" role="alert">לא ניתן לטעון תבניות: {templatesError}<button className="text-button" onClick={() => void openPanel("templates")}>ניסיון נוסף</button></p>}
-                  <details className="workflow-help"><summary>איך זה עובד?</summary><p className="workflow-hint">{selectedTemplate ? "התבנית תוחל והעובדים ישובצו בפעולה אחת." : data?.shifts.length ? "השיבוץ פועל על כל השבוע, גם כשמוצג סינון." : "שבוע ריק? צרו תבנית עם שעות וימים, ואז לחצו על שיבוץ חכם."} השיבוץ מכבד זמינות ומכסות; חוסרים יוצגו לטיפול. לאחר השיבוץ בודקים את המשמרות ומפרסמים לצוות.</p></details>
-                </section>
+                  <details className="schedule-actions" aria-label="פעולות לניהול השבוע"><summary>כלי שיבוץ וניהול השבוע <span className="schedule-tools-caption">העתקה, היסטוריה וביטול שינויים</span></summary>
+
 
                     <div className="schedule-actions-heading">
                       <strong>כלים לניהול השבוע</strong>
@@ -1057,6 +1041,38 @@ export function ScheduleApp() {
             </div>
           </Modal>
         ))}
+      {admin && smartOpen && !panel && (
+        <Modal open onClose={() => !busy && setSmartOpen(false)} title="שיבוץ חכם" description="בוחרים אילו משמרות לשבץ. המערכת מתאימה עובדים לפי זמינות, מכסות וכללי הצוות.">
+          <div className="editor-body smart-schedule-body">
+            <div className="smart-schedule-week"><CalendarDays size={20} /><div><span>השבוע לשיבוץ</span><strong>{fmtDate(week, { day: "numeric", month: "long" })} – {fmtDate(dates[6], { day: "numeric", month: "long", year: "numeric" })}</strong></div></div>
+                <section className="smart-schedule-options" aria-label="הכנת שבוע מהירה">
+                  <div className="workflow-controls">
+                    <label><span>תבנית</span>
+                      <select aria-label="תבנית לשבוע" value={selectedTemplate} disabled={busy || loading} onChange={(e) => setSelectedTemplate(e.target.value)}>
+                        <option value="">המשמרות שכבר בלוח</option>
+                        {templates.map((template) => <option key={template.id} value={template.id}>{template.name} · {template.shifts.length} משמרות{new Set(template.shifts.map((shift) => localDate(shift.start))).size === 1 ? " · תבנית יומית" : ""}</option>)}
+                      </select>
+                    </label>
+                    {templates.filter((template) => template.id === selectedTemplate && new Set(template.shifts.map((shift) => localDate(shift.start))).size === 1).map((template) => <label key={template.id}><span>יום יעד</span>
+                      <select aria-label="יעד התבנית היומית" value={templateTargets[template.id] ?? String(templateSourceWeekday(template))} disabled={busy || loading} onChange={(e) => setTemplateTargets((current) => ({ ...current, [template.id]: e.target.value }))}>
+                        {dates.map((date, day) => <option key={date} value={day}>{fmtDate(date, { weekday: "long" })}</option>)}<option value="all">כל השבוע</option>
+                      </select>
+                    </label>)}
+                    <button className="button secondary" disabled={busy || loading} onClick={() => { setTemplateTab("new"); void openPanel("templates"); }}><Plus size={17} />יצירת תבנית</button>
+                  </div>
+                  {templatesError && <p className="notice error" role="alert">לא ניתן לטעון תבניות: {templatesError}<button className="text-button" onClick={() => void openPanel("templates")}>ניסיון נוסף</button></p>}
+                  <div className="smart-schedule-note"><p className="workflow-hint">{selectedTemplate ? "התבנית תוחל והעובדים ישובצו בפעולה אחת." : data?.shifts.length ? "השיבוץ פועל על כל השבוע, גם כשמוצג סינון." : "שבוע ריק? צרו תבנית עם שעות וימים, ואז לחצו על שיבוץ חכם."} השיבוץ מכבד זמינות ומכסות; חוסרים יוצגו לטיפול. לאחר השיבוץ בודקים את המשמרות ומפרסמים לצוות.</p></div>
+                </section>
+            {!selectedTemplate && !data?.shifts.length && <p className="notice">השבוע ריק. בחרו תבנית קיימת או צרו תבנית חדשה כדי להתחיל.</p>}
+            {selectedTemplate && <p className="notice">החלת תבנית מחליפה את המשמרות בטווח שנבחר. השיבוץ מתבצע בכל השבוע, גם כשמוצגים מסננים בלוח.</p>}
+            <div className="smart-schedule-draft"><ShieldCheck size={18} /><span>התוצאה נשמרת בטיוטה. הצוות יראה אותה רק לאחר פרסום, ואפשר לבטל את השיבוץ.</span></div>
+          </div>
+          <div className="dialog-footer">
+            <button className="button secondary" disabled={busy} onClick={() => setSmartOpen(false)}>ביטול</button>
+            <button className="button primary" disabled={busy || loading || (!!selectedTemplate && !templates.some((template) => template.id === selectedTemplate)) || (!selectedTemplate && !data?.shifts.length)} onClick={() => { setSmartOpen(false); runSmartSchedule(); }}><Sparkles size={18} />הפעלת שיבוץ חכם</button>
+          </div>
+        </Modal>
+      )}
       {confirm && (
         <Modal
           open

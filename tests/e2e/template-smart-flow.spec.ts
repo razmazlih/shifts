@@ -36,7 +36,7 @@ test("manager creates a reusable template, fills the week in one action, edits o
     await page.getByLabel("בחירת שבוע", { exact: true }).fill(WEEK);
     await loaded;
     await expect(page.locator(".calendar-loading")).toBeHidden();
-    await page.locator(".schedule-actions > summary").click();
+    await page.getByRole("button", { name: "שיבוץ חכם", exact: true }).click();
     await expect(page.getByLabel("תבנית לשבוע", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "יצירת תבנית", exact: true }).click();
     const builder = page.getByRole("dialog");
@@ -54,10 +54,10 @@ test("manager creates a reusable template, fills the week in one action, edits o
     templateId = template.id;
     expect(template.shifts.length).toBeGreaterThan(1);
     expect(template.shifts.every((shift) => shift.assignments.length === 0)).toBe(true);
-    if (await builder.isVisible()) await builder.getByRole("button", { name: "סגירה", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "שיבוץ חכם", exact: true })).toBeVisible();
     await page.getByLabel("תבנית לשבוע", { exact: true }).selectOption(template.id);
     const appliedResponse = page.waitForResponse((response) => response.url().endsWith("/api/templates/apply") && response.request().method() === "POST");
-    await page.getByRole("button", { name: "שיבוץ חכם", exact: true }).click();
+    await page.getByRole("button", { name: "הפעלת שיבוץ חכם", exact: true }).click();
     const applied = await appliedResponse;
     expect(applied.status(), await applied.text()).toBe(200);
     const result = await applied.json() as WeekData;
@@ -74,7 +74,9 @@ test("manager creates a reusable template, fills the week in one action, edits o
     await fitsViewport(page);
     await page.screenshot({ path: "output/playwright/template-smart-desktop.png", fullPage: true });
     await mkdir("docs/images", { recursive: true });
-    await page.locator(".week-workflow").screenshot({ path: "docs/images/manager-quick-week.png" });
+    await page.getByRole("button", { name: "שיבוץ חכם", exact: true }).click();
+    await page.getByRole("dialog", { name: "שיבוץ חכם", exact: true }).screenshot({ path: "docs/images/manager-quick-week.png" });
+    await page.getByRole("button", { name: "סגירה", exact: true }).click();
 
     worker = await requestFactory.newContext({ baseURL: origin });
     const login = await worker.post("/api/auth/login", { data: { email: "employee@demo.local", password: process.env.DEMO_EMPLOYEE_PASSWORD ?? "DemoWorker!2026" }, headers: { Origin: origin } });
