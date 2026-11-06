@@ -88,13 +88,17 @@ export function buildTimelineBands(shifts: Shift[]): TimelineBand[] {
       if (item.start < end && item.end > start) (days[item.date] ??= []).push(item.shift);
     }
     // Identical membership is rendered as one card spanning adjacent bands.
-    // Only a newly started card needs its own readable rows at this boundary.
-    const maxCount = Math.max(0, ...Object.entries(days).map(([date, items]) => {
+    // Changed cards show new shifts in full and carry-over shifts in compact rows.
+    const minimumHeight = Math.max(0, ...Object.entries(days).map(([date, items]) => {
       const previous = previousDays[date];
       const unchanged = previous?.length === items.length && items.every((item, itemIndex) => item.id === previous[itemIndex].id);
-      return unchanged ? 0 : items.length;
+      if (unchanged) return 0;
+      const previousIds = new Set(previous?.map((item) => item.id));
+      const continuing = items.filter((item) => previousIds.has(item.id)).length;
+      const newStarts = items.length - continuing;
+      return 28 + 80 * newStarts + 30 * continuing;
     }));
-    const height = Math.max((end - start) / 60 * 28, maxCount ? 28 + 86 * maxCount : 0);
+    const height = Math.max((end - start) / 60 * 28, minimumHeight);
     const band = { start, end, top, height, days };
     top += height;
     previousDays = days;

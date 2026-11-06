@@ -75,7 +75,13 @@ export function ScheduleTimeline({ dates, shifts, admin, group, renderCard, onAd
                 const continues = sections[index + 1]?.start === band.end;
                 return <section key={band.start} className={`timeline-shared-card ${continued ? "continued" : ""} ${continues ? "continues" : ""}`} aria-label={`משמרות ${hourLabel(band.start)}–${hourLabel(band.end)}`} style={{ top: band.top, height: band.height }}>
                   <div className="timeline-band-heading"><span dir="ltr">{hourLabel(band.start)}–{hourLabel(band.end)}</span><small>{active.length} משמ׳</small></div>
-                  <div className="timeline-shared-rows">{active.map(shift => <div className="timeline-shared-row" key={shift.id}>{renderCard(shift)}</div>)}</div>
+                  <div className="timeline-shared-rows">{active.map(shift => {
+                    const carry = continued && sections[index - 1].active.some(previous => previous.id === shift.id);
+                    return <div className={`timeline-shared-row ${carry ? "timeline-carry-row" : ""}`} key={shift.id}>
+                      {carry && <span className="timeline-carry-label" aria-hidden="true">ממשיך</span>}
+                      {renderCard(shift)}
+                    </div>;
+                  })}</div>
                 </section>;
               })}
             </div>

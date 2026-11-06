@@ -49,7 +49,7 @@ describe("shared timeline bands", () => {
     const a = shift("a", "08:00", "10:00");
     const b = shift("b", "08:00", "10:00");
     expect(buildTimelineBands([b, a])).toEqual([
-      { start: 480, end: 600, top: 0, height: 200, days: { "2026-11-06": [a, b] } },
+      { start: 480, end: 600, top: 0, height: 188, days: { "2026-11-06": [a, b] } },
     ]);
   });
 
@@ -59,12 +59,12 @@ describe("shared timeline bands", () => {
     const bands = buildTimelineBands([a, b]);
     expect(bands.map(({ start, end, days }) => [start, end, days["2026-11-06"].map((item) => item.id)]))
       .toEqual([[480, 600, ["a"]], [600, 660, ["a", "b"]], [660, 720, ["b"]]]);
-    expect(bands.map(({ top, height }) => [top, height])).toEqual([[0, 114], [114, 200], [314, 114]]);
+    expect(bands.map(({ top, height }) => [top, height])).toEqual([[0, 108], [108, 138], [246, 58]]);
   });
 
   it("leaves gaps empty and does not include a shift after its end", () => {
     const bands = buildTimelineBands([shift("a", "08:00", "09:00"), shift("b", "10:00", "11:00")]);
-    expect(bands[1]).toEqual({ start: 540, end: 600, top: 114, height: 28, days: {} });
+    expect(bands[1]).toEqual({ start: 540, end: 600, top: 108, height: 28, days: {} });
     expect(bands[2].days["2026-11-06"].map((item) => item.id)).toEqual(["b"]);
     expect(buildTimelineBands([])).toEqual([{ start: 420, end: 1380, top: 0, height: 448, days: {} }]);
   });
@@ -80,9 +80,9 @@ describe("shared timeline bands", () => {
   it("expands brief active periods but keeps surrounding empty minutes proportional", () => {
     const bands = buildTimelineBands([shift("brief", "08:15", "08:20")]);
     expect(bands.map(({ start, end, height }) => [start, end, height])).toEqual([
-      [480, 495, 7], [495, 500, 114], [500, 540, 40 / 60 * 28],
+      [480, 495, 7], [495, 500, 108], [500, 540, 40 / 60 * 28],
     ]);
-    expect(bands[2].top).toBe(121);
+    expect(bands[2].top).toBe(115);
   });
 
   it("does not expand carry-over cards when only another day's membership changes", () => {
@@ -90,9 +90,17 @@ describe("shared timeline bands", () => {
     const shorter = { ...shift("other-day", "07:00", "15:00"), start: localToISO("2026-11-07", "07:00"), end: localToISO("2026-11-07", "15:00") };
     const bands = buildTimelineBands([...long, shorter]);
     expect(bands.map(({ start, end, height }) => [start, end, height])).toEqual([
-      [420, 900, 286], [900, 960, 28],
+      [420, 900, 268], [900, 960, 28],
     ]);
     expect(bands[1].days["2026-11-06"]).toEqual(long);
     expect(bands[1].days["2026-11-07"]).toBeUndefined();
+  });
+
+  it("uses compact carry-over rows when one new shift joins four existing shifts", () => {
+    const continuing = ["a", "b", "c", "d"].map((id) => shift(id, "07:00", "16:00"));
+    const bands = buildTimelineBands([...continuing, shift("new", "08:00", "09:00")]);
+    expect(bands[1]).toMatchObject({ start: 480, end: 540, height: 228 });
+    expect(bands[1].days["2026-11-06"]).toHaveLength(5);
+    expect(bands[2].height).toBe(196);
   });
 });

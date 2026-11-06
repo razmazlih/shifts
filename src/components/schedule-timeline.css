@@ -24,7 +24,7 @@
 .timeline-band-heading small { font-size:9px; font-weight:400; white-space:nowrap; }
 .timeline-shared-rows { display:flex; flex-direction:column; flex:1; min-height:0; }
 .timeline-shared-row { flex:1 1 0; min-height:0; min-width:0; container-type:size; }
-.timeline-shared-row .shift-card { display:flex; flex-direction:column; justify-content:center; gap:3px; height:100%; min-height:0; margin:0; padding:6px 8px; border:0; border-inline-start:3px solid #7bb69b; border-bottom:1px solid #d5e3db; border-radius:0; overflow:hidden; }
+.timeline-shared-row .shift-card { display:flex; flex-direction:column; justify-content:flex-start; gap:3px; height:100%; min-height:0; margin:0; padding:6px 8px; border:0; border-inline-start:3px solid #7bb69b; border-bottom:1px solid #d5e3db; border-radius:0; overflow:hidden; }
 .timeline-shared-row:last-child .shift-card { border-bottom:0; }
 .timeline-shared-row .shift-card.patrol { border-inline-start-color:#af96d0; }
 .timeline-shared-row .shift-card.has-error { border-inline-start-color:#d56464; }
@@ -51,7 +51,7 @@
 .timeline-days button[aria-pressed=true] { background:#174d40; color:white; }
 .timeline-days strong { font-size:18px; }
 .timeline-days small { font-size:9px; }
-@media (max-width:767px) {
+@media (max-width:1100px) {
   .schedule-timeline .timeline-grid { grid-template-columns:46px minmax(0,1fr); }
   .schedule-timeline .timeline-date:not(.active-date) { display:none; }
   .schedule-timeline .timeline-days { display:flex; }
@@ -81,3 +81,11 @@
   .timeline-shared-row .shift-issue-summary > span { white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
   .timeline-shared-row .shift-covered, .timeline-shared-row .shift-warning, .timeline-shared-row .shift-issues { font-size:11px; line-height:15px; }
 }
+
+/* Continuing shifts retain context without repeating an entire card at every change. */
+.timeline-carry-row { flex:0 0 30px; position:relative; container-type:normal; }
+.timeline-carry-label { position:absolute; inset-inline-end:7px; top:8px; z-index:1; font-size:9px; color:#526c60; pointer-events:none; }
+.timeline-carry-row .shift-card { justify-content:flex-start; padding:4px 7px; padding-inline-end:40px; gap:0; }
+.timeline-carry-row .shift-title { font-size:11px; line-height:16px; white-space:nowrap; display:block; }
+.timeline-carry-row :is(.shift-card-top,.shift-people,.shift-issues,.shift-covered,.shift-warning) { display:none; }
+.timeline-shared-rows:not(:has(.timeline-shared-row:not(.timeline-carry-row))) .timeline-carry-row { flex:1 1 30px; }
