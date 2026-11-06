@@ -59,3 +59,45 @@ export function layoutTimelineShifts(shifts: Shift[]): TimelineShift[] {
   finishCluster();
   return sorted;
 }
+
+export interface TimelineBand {
+  start: number;
+  end: number;
+  top: number;
+  height: number;
+  days: Record<string, Shift[]>;
+}
+
+/**
+ * Shared boundaries keep every day aligned while allowing short, busy periods
+ * enough space for readable full-width rows. Membership is half-open: a shift
+ * ending at a boundary never appears in the following band.
+ */
+export function buildTimelineBands(shifts: Shift[]): TimelineBand[] {
+  const range = getTimelineRange(shifts);
+  const intervals = shifts.map((shift) => ({ shift, date: localDate(shift.start), ...interval(shift) }))
+    .sort((a, b) => a.start - b.start || b.end - a.end || a.shift.id.localeCompare(b.shift.id));
+  const boundaries = [...new Set([range.start, range.end, ...intervals.flatMap(({ start, end }) => [start, end])])]
+    .sort((a, b) => a - b);
+  let top = 0;
+  let previousDays: Record<string, Shift[]> = {};
+  return boundaries.slice(0, -1).map((start, index) => {
+    const end = boundaries[index + 1];
+    const days: Record<string, Shift[]> = {};
+    for (const item of intervals) {
+      if (item.start < end && item.end > start) (days[item.date] ??= []).push(item.shift);
+    }
+    // Identical membership is rendered as one card spanning adjacent bands.
+    // Only a newly started card needs its own readable rows at this boundary.
+    const maxCount = Math.max(0, ...Object.entries(days).map(([date, items]) => {
+      const previous = previousDays[date];
+      const unchanged = previous?.length === items.length && items.every((item, itemIndex) => item.id === previous[itemIndex].id);
+      return unchanged ? 0 : items.length;
+    }));
+    const height = Math.max((end - start) / 60 * 28, maxCount ? 28 + 86 * maxCount : 0);
+    const band = { start, end, top, height, days };
+    top += height;
+    previousDays = days;
+    return band;
+  });
+}

@@ -17,21 +17,28 @@
 .timeline-axis-body > span:first-child { transform:none; }
 .timeline-axis-body small { font-size:9px; margin-left:2px; color:#916830; }
 .timeline-hour-line { position:absolute; inset-inline:0; border-top:1px solid #edf1ee; }
-.timeline-event { position:absolute; padding:1px 2px; min-width:0; }
-.timeline-event .shift-card { height:100%; min-height:0; margin:0; padding:6px; border-radius:5px; overflow:hidden; display:flex; flex-direction:column; gap:4px; }
-.timeline-event .shift-card-top { flex-wrap:wrap; flex-shrink:0; gap:2px; }
-.timeline-event .shift-time { font-size:10px; letter-spacing:-.3px; }
-.timeline-event .shift-title { font-size:11px; line-height:1.4; margin:0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; flex-shrink:0; }
-.timeline-event .shift-people { margin:0; gap:2px; }
-.timeline-event .shift-people > span { font-size:10px; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.timeline-event .person-dot { display:none; }
-.timeline-event .shift-issues { margin:0; padding:3px 0 0; font-size:10px; overflow:hidden; }
-.timeline-event .shift-issue-summary { display:block; }
-.timeline-event .shift-issue-summary > span { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-.timeline-event .shift-issues small, .timeline-event .shift-note { display:none; }
-.timeline-event .shift-covered, .timeline-event .shift-warning { margin:0; font-size:10px; gap:2px; }
-.timeline-event-short .shift-title, .timeline-event-short .shift-people, .timeline-event-short .shift-covered, .timeline-event-short .shift-warning, .timeline-event-short .shift-issues { display:none; }
-.timeline-event .shift-card:focus-visible { outline:3px solid #164e40; outline-offset:-3px; z-index:6; }
+/* One full-width card per time band, with distinct full-width shift rows. */
+.timeline-shared-card { position:absolute; inset-inline:3px; padding:1px 0; overflow:hidden; border:1px solid #d5e3db; border-radius:8px; background:#f8fbf9; }
+.timeline-band-heading { display:flex; align-items:center; justify-content:space-between; gap:3px; height:26px; padding:3px 6px; font-size:11px; font-weight:700; color:#3b594b; border-bottom:1px solid #d5e3db; }
+.timeline-band-heading small { font-size:9px; font-weight:400; white-space:nowrap; }
+.timeline-shared-rows { display:flex; flex-direction:column; }
+.timeline-shared-row { height:86px; min-width:0; }
+.timeline-shared-row .shift-card { display:flex; flex-direction:column; gap:2px; height:100%; min-height:0; margin:0; padding:5px 7px; border:0; border-inline-start:3px solid #7bb69b; border-bottom:1px solid #d5e3db; border-radius:0; overflow:hidden; }
+.timeline-shared-row .shift-card.patrol { border-inline-start-color:#af96d0; }
+.timeline-shared-row .shift-card.has-error { border-inline-start-color:#d56464; }
+.timeline-shared-row .shift-card.has-warning, .timeline-shared-row .shift-card.short-staffed { border-inline-start-color:#d6a242; }
+.timeline-shared-row .shift-card-top { display:flex; flex-shrink:0; gap:2px; }
+.timeline-shared-row .shift-time { font-size:11px; }
+.timeline-shared-row .shift-title { font-size:12px; line-height:16px; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex-shrink:0; }
+.timeline-shared-row .shift-people { margin:0; display:flex; flex-direction:row; flex-wrap:wrap; gap:0 5px; max-height:28px; overflow:hidden; }
+.timeline-shared-row .shift-people > span { font-size:11px; line-height:14px; display:block; }
+.timeline-shared-row .person-dot { display:none; }
+.timeline-shared-row .shift-issues { margin:0; padding:0; border:0; overflow:hidden; font-size:10px; line-height:13px; }
+.timeline-shared-row .shift-issue-summary { display:flex; align-items:center; gap:3px; }
+.timeline-shared-row .shift-issue-summary > span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.timeline-shared-row .shift-issues small, .timeline-shared-row .shift-note { display:none; }
+.timeline-shared-row .shift-covered, .timeline-shared-row .shift-warning { margin:0; font-size:10px; line-height:13px; gap:3px; }
+.timeline-shared-row .shift-card:focus-visible { outline:3px solid #164e40; outline-offset:-3px; }
 .timeline-empty { position:absolute; top:22px; inset-inline:5px; text-align:center; font-size:11px; color:#87988e; }
 .timeline-note { padding:10px 16px; margin:0; font-size:11px; color:#687d70; border-top:1px solid var(--timeline-border); }
 .timeline-day-view .timeline-grid { grid-template-columns:52px minmax(0,1fr); }
@@ -50,8 +57,6 @@
   .timeline-toolbar { padding:10px 12px; font-size:11px; }
   .timeline-heading { height:72px; }
   .timeline-adds button { padding:5px 8px; font-size:12px; min-height:30px; }
-  .timeline-event .shift-time, .timeline-event .shift-title { font-size:12px; }
-  .timeline-event .shift-people > span { font-size:11px; }
   .timeline-scroll { max-height:none; }
 }
 @media print {
@@ -61,13 +66,6 @@
   .schedule-timeline .timeline-date { display:block !important; }
   .timeline-heading { position:static; }
 }
-/* Preserve readable clock values even when several shifts share a narrow day. */
-.timeline-event { container-type:inline-size; }
-.timeline-event .shift-title { -webkit-line-clamp:3; }
-@container (max-width: 90px) {
-  .timeline-event .shift-time { display:flex; flex-direction:column; align-items:flex-start; font-size:11px; line-height:14px; }
-  .timeline-event .shift-time-dash { display:none; }
-  .timeline-event .shift-card-top { align-items:flex-start; }
-  .timeline-event .shift-covered { font-size:9px; }
-  .timeline-event-short .shift-time { flex-direction:row; flex-wrap:wrap; font-size:9px; }
-}
+
+.timeline-shared-card.continued { border-start-start-radius:0; border-start-end-radius:0; }
+.timeline-shared-card.continues { border-end-start-radius:0; border-end-end-radius:0; }
