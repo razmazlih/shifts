@@ -1,0 +1,153 @@
+{
+  "scope": "isolated local PostgreSQL and Chromium standalone build; latest successful result per spec after targeted reruns",
+  "results": [
+    {
+      "file": "tests/e2e/employee-home.spec.ts",
+      "startTime": "2026-11-06T11:39:27.054Z",
+      "duration": 4231.713,
+      "expected": 4,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    {
+      "file": "tests/e2e/employee-requests.spec.ts",
+      "startTime": "2026-11-06T11:43:29.877Z",
+      "duration": 3639.772,
+      "expected": 2,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    {
+      "file": "tests/e2e/employees.spec.ts",
+      "startTime": "2026-11-06T11:39:34.624Z",
+      "duration": 2014.6370000000002,
+      "expected": 1,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    {
+      "file": "tests/e2e/keyboard.spec.ts",
+      "startTime": "2026-11-06T11:39:36.864Z",
+      "duration": 2762.674,
+      "expected": 1,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    {
+      "file": "tests/e2e/manager-workflows.spec.ts",
+      "startTime": "2026-11-06T11:39:39.855Z",
+      "duration": 6664.851,
+      "expected": 2,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    {
+      "file": "tests/e2e/mobile-manager.spec.ts",
+      "startTime": "2026-11-06T11:39:46.748Z",
+      "duration": 3053.4159999999997,
+      "expected": 1,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    {
+      "file": "tests/e2e/monthly-report.spec.ts",
+      "startTime": "2026-11-06T11:41:35.461Z",
+      "duration": 2948.033,
+      "expected": 3,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    {
+      "file": "tests/e2e/personal-updates.spec.ts",
+      "startTime": "2026-11-06T11:41:38.636Z",
+      "duration": 3082.579,
+      "expected": 1,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    {
+      "file": "tests/e2e/scheduling-safety.spec.ts",
+      "startTime": "2026-11-06T11:39:54.544Z",
+      "duration": 1395.697,
+      "expected": 7,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    {
+      "file": "tests/e2e/shift-touch.spec.ts",
+      "startTime": "2026-11-06T11:39:56.168Z",
+      "duration": 2039.042,
+      "expected": 1,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    {
+      "file": "tests/e2e/smart-repair.spec.ts",
+      "startTime": "2026-11-06T11:39:58.435Z",
+      "duration": 7127.276,
+      "expected": 1,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    {
+      "file": "tests/e2e/system.spec.ts",
+      "startTime": "2026-11-06T11:40:05.792Z",
+      "duration": 1395.978,
+      "expected": 10,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    {
+      "file": "tests/e2e/template-management.spec.ts",
+      "startTime": "2026-11-06T11:40:07.416Z",
+      "duration": 2130.331,
+      "expected": 2,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    {
+      "file": "tests/e2e/template-smart-flow.spec.ts",
+      "startTime": "2026-11-06T11:40:09.774Z",
+      "duration": 8306.283000000001,
+      "expected": 1,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    {
+      "file": "tests/e2e/templates.spec.ts",
+      "startTime": "2026-11-06T11:40:18.310Z",
+      "duration": 2020.485,
+      "expected": 2,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    {
+      "file": "tests/e2e/ui.spec.ts",
+      "startTime": "2026-11-06T11:40:20.561Z",
+      "duration": 2957.115,
+      "expected": 3,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    }
+  ],
+  "passed": 42,
+  "failed": 0,
+  "skipped": 0,
+  "flaky": 0
+}
