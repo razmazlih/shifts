@@ -36,6 +36,8 @@ test("manager creates a reusable template, fills the week in one action, edits o
     await page.getByLabel("בחירת שבוע", { exact: true }).fill(WEEK);
     await loaded;
     await expect(page.locator(".calendar-loading")).toBeHidden();
+    await page.locator(".schedule-actions > summary").click();
+    await expect(page.getByLabel("תבנית לשבוע", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "יצירת תבנית", exact: true }).click();
     const builder = page.getByRole("dialog");
     const name = "שבוע רגיל";

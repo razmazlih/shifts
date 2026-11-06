@@ -3915,7 +3915,7 @@ label small {
 }
 .schedule-stats .stat-icon { width: 32px; height: 32px; grid-row: 1 / 3; }
 .schedule-stats .stat-icon svg { width: 18px; height: 18px; }
-.schedule-stats .stat-card > div { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 2px 8px; }
+.schedule-stats .stat-card > div { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 10px; }
 .schedule-stats .stat-card > div > span { margin: 0; font-size: 11px; }
 .schedule-stats .stat-card strong { font-size: 21px; gap: 4px; }
 .schedule-stats .stat-card strong small { display: none; }
@@ -3974,4 +3974,33 @@ label small {
   .calendar-subbar .attention-filter { min-height: 44px; }
   .schedule-panel > .schedule-actions { padding: 6px 12px; }
   .schedule-actions > summary, .workflow-help > summary { min-height: 44px; align-content: center; }
+}
+
+/* A single quiet toolbar separates everyday viewing from occasional setup. */
+.schedule-panel > .calendar-toolbar { background: #fff; padding: 12px 16px; }
+.calendar-toolbar .calendar-icon,
+.calendar-toolbar .week-heading > div > span { display: none; }
+.calendar-toolbar .add-shift { box-shadow: none; background: #fff; color: var(--teal); }
+.schedule-panel > .calendar-subbar { justify-content: flex-start; background: #fff; gap: 12px; }
+.calendar-subbar .filters { background: transparent; border: 0; padding: 0; border-radius: 6px; }
+.calendar-subbar .filter { border-radius: 6px; }
+.calendar-subbar .filter.selected { background: #edf5f1; box-shadow: none; }
+.calendar-subbar .schedule-employee-filter { margin-inline-start: auto; gap: 8px; }
+.schedule-panel > .schedule-actions { background: #fff; padding: 4px 16px; }
+.schedule-actions > summary { padding: 8px 0; color: #334f43; font-weight: 600; }
+.schedule-tools-caption { margin-inline-start: 12px; font-size: 11px; font-weight: 400; color: #768395; }
+.schedule-actions .week-workflow { border: 1px solid #e2eae6; border-radius: 8px; padding: 12px; margin-bottom: 16px; background: #f7faf8; }
+.schedule-actions .workflow-controls label { display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
+.schedule-actions .workflow-controls { align-items: flex-end; }
+.schedule-actions .workflow-controls select { margin: 0; min-height: 40px; }
+.schedule-actions .workflow-controls .button { min-height: 40px; }
+.schedule-stats .stat-icon { width: 26px; height: 26px; background: transparent; }
+.schedule-stats .stat-card { grid-template-columns: 26px minmax(0, 1fr); }
+@media (max-width: 600px) {
+  .schedule-tools-caption { display: none; }
+  .calendar-subbar .schedule-employee-filter { margin: 0; }
+  .schedule-panel > .calendar-subbar { gap: 8px; }
+  .schedule-actions .workflow-controls select,
+  .schedule-actions .workflow-controls .button { min-height: 44px; }
+  .schedule-actions > summary { min-height: 44px; }
 }
