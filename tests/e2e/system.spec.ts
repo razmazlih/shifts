@@ -208,12 +208,13 @@ test("optimistic concurrency permits one writer and rejects a stale overwrite", 
 });
 test("shortage publication requires recorded consent and a stale publication review is rejected", async () => {
   const date = "2032-03-07";
+  const previousPublication = await read(worker, date);
   const s: Shift = { ...shift("publication-shortage"), start: localToISO(date, "08:00"), end: localToISO(date, "12:00"), assignments: [] };
   const saved = await save([s], date);
   const review = await (await admin.get(`/api/weeks/publish?week=${date}`)).json();
   const input = { weekStart: date, revision: saved.revision, reviewToken: review.reviewToken };
   expect((await admin.post("/api/weeks/publish", data(input))).status()).toBe(422);
-  expect((await read(worker, date)).shifts).toEqual([]);
+  expect((await read(worker, date)).shifts).toEqual(previousPublication.shifts);
   const published = await admin.post("/api/weeks/publish", data({ ...input, allowUnderstaffed: true }));
   expect(published.status(), await published.text()).toBe(200);
   const history = await (await admin.get(`/api/history?week=${date}`)).json();

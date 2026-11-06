@@ -1045,7 +1045,9 @@ label small {
   gap: 10px;
   box-shadow: 0 7px 30px #1b2b4024;
   border-radius: 10px;
-  z-index: 100;
+  /* Dialog actions must stay visible above a previous action's notification. */
+  z-index: 75;
+  pointer-events: none;
   font-size: 13px;
 }
 .dialog-overlay {

@@ -95,13 +95,17 @@ test("availability, rules and neighboring commitments each invalidate a reviewed
   await save([makeShift(date, "PATROL", false)]);
   const before = await read();
   const availabilityProposal = await preview();
-  await ok(await admin.put(`/api/employees/${person.id}`, payload({ employee: { ...person, timeOff: [{ start: localToISO(date, "08:00"), end: localToISO(date, "16:00") }] } })));
+  const previousPerson = person;
+  person = (await ok<{ employee: Employee }>(await admin.put(`/api/employees/${person.id}`, payload({ employee: { ...person, timeOff: [{ start: localToISO(date, "08:00"), end: localToISO(date, "16:00") }] } })))).employee;
   expect((await apply(availabilityProposal)).status()).toBe(409);
-  await ok(await admin.put(`/api/employees/${person.id}`, payload({ employee: person })));
+  expect((await admin.put(`/api/employees/${person.id}`, payload({ employee: previousPerson }))).status()).toBe(409);
+  person = (await ok<{ employee: Employee }>(await admin.put(`/api/employees/${person.id}`, payload({ employee: { ...previousPerson, updatedAt: person.updatedAt } })))).employee;
   const rulesProposal = await preview();
-  await ok(await admin.put("/api/settings", payload({ rules: { ...before.rules, minRestHours: before.rules.minRestHours === 8 ? 9 : 8 } })));
+  const modifiedRules = { ...before.rules, minRestHours: before.rules.minRestHours === 8 ? 9 : 8 };
+  await ok(await admin.put("/api/settings", payload({ rules: modifiedRules, expectedRules: before.rules })));
   expect((await apply(rulesProposal)).status()).toBe(409);
-  await ok(await admin.put("/api/settings", payload({ rules: before.rules })));
+  expect((await admin.put("/api/settings", payload({ rules: before.rules, expectedRules: before.rules }))).status()).toBe(409);
+  await ok(await admin.put("/api/settings", payload({ rules: before.rules, expectedRules: modifiedRules })));
   const neighborProposal = await preview(); const previous = addDays(date, -7);
   await save([makeShift(previous)], previous);
   expect((await apply(neighborProposal)).status()).toBe(409);
@@ -111,7 +115,7 @@ test("availability, rules and neighboring commitments each invalidate a reviewed
 test("daily-template scheduling leaves other days and teams untouched", async () => {
   const otherDay = makeShift(), otherTeam = makeShift(addDays(date, 1), "MANAGERS");
   await save([otherDay, otherTeam]);
-  const { template } = await ok<{ template: { id: string } }>(await admin.post("/api/templates", payload({
+  const { template } = await ok<{ template: { id: string; revision: number } }>(await admin.post("/api/templates", payload({
     name: "תבנית יומית לבטיחות", weekStart: date,
     entries: [{ title: "סיור יומי", group: "PATROL", startTime: "08:00", endTime: "16:00", required: 1, days: [0] }],
   })));
@@ -124,7 +128,7 @@ test("daily-template scheduling leaves other days and teams untouched", async ()
     expect(proposal.shifts).toContainEqual(otherDay); expect(proposal.shifts).toContainEqual(otherTeam);
     expect((await read()).shifts).toEqual(current.shifts);
     expect((await ok<WeekData>(await apply(proposal))).shifts).toEqual(proposal.shifts);
-  } finally { await admin.delete("/api/templates", payload({ templateId: template.id })); }
+  } finally { await admin.delete("/api/templates", payload({ templateId: template.id, revision: template.revision ?? 0 })); }
 });
 
 test("employee cannot create/apply/cancel proposals and publish blockers cannot be overridden", async () => {

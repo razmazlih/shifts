@@ -1,0 +1,32 @@
+.employee-updates { margin-block: 24px; border-top: 1px solid var(--border, #dce3e7); padding-top: 22px; }
+.employee-updates-heading { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.employee-updates-heading h2 { display: flex; gap: 8px; align-items: center; margin: 0; font-size: 1.15rem; }
+.employee-updates-heading p, .updates-explanation { margin: 6px 0 12px; color: #53636f; font-size: .87rem; line-height: 1.65; }
+.employee-updates-list { display: grid; gap: 10px; }
+.personal-update { border: 1px solid #b5c8d1; border-radius: 12px; background: #fff; overflow: hidden; }
+.personal-update.acknowledged { border-color: #d8e1e5; }
+.personal-update summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; padding: 14px; min-height: 60px; list-style: none; }
+.personal-update summary::after { content: "+"; font-size: 1.25rem; flex-shrink: 0; }
+.personal-update[open] summary::after { content: "−"; }
+.personal-update summary > span:first-child { flex: 1; min-width: 0; }
+.personal-update summary strong, .personal-update summary small { display: block; overflow-wrap: anywhere; }
+.personal-update summary strong { font-size: .94rem; line-height: 1.6; }
+.personal-update summary small { margin-top: 4px; color: #53636f; font-size: .79rem; line-height: 1.55; }
+.update-read-status { display: flex; align-items: center; gap: 4px; max-width: 160px; color: #365b6e; font-weight: 600; font-size: .78rem; line-height: 1.55; }
+.personal-update-content { border-top: 1px solid #e5ebed; padding: 14px; display: grid; gap: 14px; }
+.personal-update-change { background: #f5f8fa; border-radius: 8px; padding: 12px; min-width: 0; }
+.personal-update-change h3 { margin: 0 0 9px; font-size: .95rem; }
+.update-work-periods { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.update-work-periods li { display: grid; gap: 5px; line-height: 1.7; overflow-wrap: anywhere; font-size: .89rem; }
+.update-comparison-label { margin: 9px 0 4px; font-size: .77rem; font-weight: 700; color: #566975; }
+.update-acknowledgement, .updates-empty { font-size: .87rem; color: #476453; line-height: 1.7; margin: 0; }
+.updates-load-more { margin-top: 12px; }
+.personal-update summary:focus-visible { outline: 3px solid #32788b; outline-offset: -4px; border-radius: 11px; }
+@media (max-width: 480px) {
+  .employee-updates-heading { flex-wrap: wrap; }
+  .personal-update summary { flex-wrap: wrap; gap: 7px; }
+  .personal-update summary > span:first-child { flex-basis: calc(100% - 30px); }
+  .update-read-status { max-width: none; flex-basis: 100%; }
+  .personal-update summary::after { position: absolute; inset-inline-end: 13px; top: 14px; }
+  .personal-update summary { position: relative; padding-inline-end: 32px; }
+}

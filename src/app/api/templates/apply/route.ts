@@ -10,6 +10,7 @@ export const POST = route(async (request) => {
   const user = await requireUser(true);
   const data = await body(request, revisionSchema.extend({
     templateId: idSchema,
+    templateRevision: z.number().int().nonnegative().max(2147483646).optional(),
     targetDay: z.number().int().min(0).max(6).optional(),
     allDays: z.boolean().optional(),
     autoSchedule: z.boolean().optional(),
@@ -29,12 +30,16 @@ export const POST = route(async (request) => {
   return json(await mutateWeek(user, data.weekStart, data.revision, "TEMPLATE", async (shifts, tx) => {
     const template = await tx.template.findUnique({ where: { id: data.templateId } });
     if (!template) throw new ApiError(404, "התבנית לא נמצאה");
+    if (data.templateRevision !== undefined && template.revision !== data.templateRevision)
+      throw new ApiError(409, "התבנית השתנתה מאז הטעינה. יש לרענן לפני החלה.");
     const applied = applyTemplateShifts(shifts, {
       shifts: template.shifts as unknown as Shift[], sourceWeek: template.sourceWeek,
     }, data.weekStart, data.targetDay, data.allDays);
+    const replacements = applied.filter((shift) => inSchedulingScope(shift, scope));
+    if (!replacements.length) throw new ApiError(400, "בתבנית אין משמרות לימים ולצוותים שנבחרו");
     const next = [
       ...shifts.filter((shift) => !inSchedulingScope(shift, scope)),
-      ...applied.filter((shift) => inSchedulingScope(shift, scope)),
+      ...replacements,
     ];
     verifyProposalChanges(shifts, next, "repair", scope);
     return next;

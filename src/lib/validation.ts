@@ -207,6 +207,7 @@ export const employeeFields = z
             start: instant,
             end: instant,
             reason: z.string().max(500).optional(),
+            requestId: idSchema.optional(),
           })
           .strict()
           .refine(
@@ -250,4 +251,5 @@ export const schedulingRequestSchema = revisionSchema.extend({
   mode: z.enum(["fill", "repair"]).default("fill"),
   scope: schedulingScopeSchema,
   templateId: idSchema.optional(),
+  templateRevision: z.number().int().nonnegative().max(2147483646).optional(),
 });

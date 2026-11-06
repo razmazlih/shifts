@@ -30,6 +30,8 @@ export const POST = route(async (request) => {
   );
   if (password && !employee.email)
     throw new ApiError(400, "נדרשת כתובת דוא״ל ליצירת גישה לעובד");
+  if (employee.timeOff.some(item => item.requestId))
+    throw new ApiError(400, "אילוץ שמקושר לבקשה נוצר רק באמצעות אישור בקשה קיימת.");
   const passwordHash = password ? await hash(password, 12) : null;
   const created = await db.$transaction(async (tx) => {
     const row = await tx.employee.create({

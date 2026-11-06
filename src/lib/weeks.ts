@@ -1,6 +1,7 @@
 import { Prisma, type Employee as DbEmployee } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
+import { createPublicationUpdates } from "./publication-notifications";
 import { ApiError } from "./validation";
 import { DEFAULT_RULES, validateSchedule } from "./scheduler";
 import { addDays, localDate, shiftByDays } from "./time";
@@ -17,6 +18,7 @@ export const asJson = (value: unknown) =>
 export function employeeData(e: DbEmployee): Employee {
   return {
     id: e.id,
+    ...(e.updatedAt ? { updatedAt: e.updatedAt.toISOString() } : {}),
     name: e.name,
     ...(e.email ? { email: e.email } : {}),
     active: e.active,
@@ -202,8 +204,9 @@ export async function mutateWeek(
         await tx.week.create({
           data: { weekStart, shifts: asJson(shifts), revision: nextRevision },
         });
-      if (publish)
-        await tx.publication.create({
+      if (publish) {
+        const previous = await tx.publication.findFirst({ where: { weekStart }, orderBy: { revision: "desc" }, select: { shifts: true } });
+        const publication = await tx.publication.create({
           data: {
             weekStart,
             revision: nextRevision,
@@ -211,6 +214,8 @@ export async function mutateWeek(
             actorId: user.id,
           },
         });
+        await createPublicationUpdates(tx, publication.id, weekStart, (previous?.shifts ?? []) as unknown as Shift[], shifts);
+      }
       await tx.audit.create({
         data: {
           weekStart,

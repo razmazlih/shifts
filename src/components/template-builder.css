@@ -38,3 +38,17 @@
   .template-builder-footer { flex-direction: column; align-items: stretch; }
   .template-builder-footer .button, .template-builder-add { width: 100%; }
 }
+
+.template-row { flex-wrap:wrap; align-items:flex-start; }
+.template-row > div:not(.template-management-actions) { flex:1; min-width:160px; }
+.template-management-actions { width:100%; flex-basis:100%; }
+.template-management-actions .button-row { flex-wrap:wrap; gap:7px; }
+.template-management-actions .button { font-size:12px; min-height:38px; padding:7px 10px; }
+.template-rename { display:flex; align-items:flex-end; flex-wrap:wrap; gap:10px; margin-top:12px; }
+.template-rename label { flex:1; min-width:180px; }
+.template-management-actions .notice { margin-top:10px; }
+.template-saved { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; }
+.template-builder-fields { grid-template-columns:2fr repeat(5,minmax(0,1fr)); }
+@media(max-width:600px) { .template-builder-fields { grid-template-columns:1fr 1fr; } .template-builder-title { grid-column:1/-1; } .template-row > div:not(.template-management-actions) { flex-basis:100%; } }
+
+.template-management-actions summary { padding-block:8px; color:#335d55; cursor:pointer; font-weight:600; }

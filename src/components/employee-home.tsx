@@ -6,6 +6,7 @@ import { CalendarDays, Clock3, RefreshCw } from "lucide-react";
 import { localDate, localTime } from "@/lib/time";
 import { personalShiftEndLabel, type PersonalSchedule, type PersonalShift } from "@/lib/personal-schedule";
 import "./employee-home.css";
+import { EmployeeUpdates } from "./employee-updates";
 
 const dayLabel = (iso: string) => new Intl.DateTimeFormat("he-IL", {
   timeZone: "Asia/Jerusalem", weekday: "long", day: "numeric", month: "long", year: "numeric",
@@ -22,9 +23,10 @@ function ShiftDetails({ shift }: { shift: PersonalShift }) {
   </>;
 }
 
-export function EmployeeHome({ onViewTeam, onViewMonth }: {
+export function EmployeeHome({ onViewTeam, onViewMonth, onViewRequests }: {
   onViewTeam?: () => void;
   onViewMonth?: () => void;
+  onViewRequests?: () => void;
 }) {
   const [data, setData] = useState<PersonalSchedule | null>(null);
   const [error, setError] = useState("");
@@ -88,9 +90,11 @@ export function EmployeeHome({ onViewTeam, onViewMonth }: {
       </section>
       <p className="personal-data-note">נבדקו הסידורים שפורסמו{data.availableThrough ? <> עד <bdi dir="ltr">{data.availableThrough.split("-").reverse().join(".")}</bdi></> : " הזמינים"}. עודכן ב־<bdi dir="ltr">{localTime(data.checkedAt)}</bdi> בתאריך <bdi dir="ltr">{localDate(data.checkedAt).split("-").reverse().join(".")}</bdi>.</p>
     </>}
-    {(onViewTeam || onViewMonth) && <nav className="personal-shortcuts" aria-label="מידע נוסף לעובד">
+    <EmployeeUpdates />
+    {(onViewTeam || onViewMonth || onViewRequests) && <nav className="personal-shortcuts" aria-label="מידע נוסף לעובד">
       {onViewTeam && <button className="button secondary" onClick={onViewTeam}>לוח הצוות</button>}
       {onViewMonth && <button className="button secondary" onClick={onViewMonth}>החודש שלי</button>}
+      {onViewRequests && <button className="button secondary" onClick={onViewRequests}>הבקשות שלי</button>}
     </nav>}
   </section>;
 }

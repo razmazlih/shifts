@@ -27,7 +27,7 @@ async function main() {
         const existing = employees.find(e => e.email === email);
         if (existing && existing.name !== originalNames[index] && existing.name !== entry.name)
           throw new Error(`Unexpected demo employee at ${email}; no changes made.`);
-        return { ...existing, id: existing?.id ?? `demo-roster-${index+1}`, ...entry, email, active: true,
+        return { ...existing, updatedAt: existing?.updatedAt.toISOString(), id: existing?.id ?? `demo-roster-${index+1}`, ...entry, email, active: true,
           maxWeeklyHours: existing?.maxWeeklyHours ?? 42, availability: (existing?.availability ?? []) as unknown as Employee["availability"],
           timeOff: (existing?.timeOff ?? []) as unknown as Employee["timeOff"], preferredDays: existing?.preferredDays ?? [index%7,(index+2)%7] };
       });

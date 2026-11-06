@@ -11,10 +11,11 @@ export const templateEntriesSchema = z.array(z.object({
   group: z.enum(["MANAGERS", "PATROL"]),
   startTime: templateClock,
   endTime: templateClock,
+  endDayOffset: z.number().int().min(0).max(2).optional(),
   required: z.number().int().min(1).max(50),
   days: z.array(z.number().int().min(0).max(6)).min(1).max(7)
     .refine((days) => new Set(days).size === days.length, "יש לבחור כל יום פעם אחת"),
-}).strict()).min(1).max(300).refine(
+}).strict().refine(entry => entry.endDayOffset === undefined || (entry.endDayOffset !== 0 || entry.endTime > entry.startTime) && (entry.endDayOffset !== 2 || entry.endTime <= entry.startTime), "משך משמרת חייב להיות חיובי ועד 48 שעות")).min(1).max(300).refine(
   (entries) => entries.reduce((sum, entry) => sum + entry.days.length, 0) <= 300,
   "התבנית תיצור יותר מ־300 משמרות בשבוע",
 );
@@ -30,7 +31,7 @@ export function createTemplateEntries(entries: unknown, sourceWeek: string): Shi
         title: entry.title,
         group: entry.group,
         start: localToISO(date, entry.startTime),
-        end: localToISO(entry.endTime <= entry.startTime ? addDays(date, 1) : date, entry.endTime),
+        end: localToISO(addDays(date, entry.endDayOffset ?? (entry.endTime <= entry.startTime ? 1 : 0)), entry.endTime),
         required: entry.required,
         assignments: [],
       };
@@ -57,6 +58,8 @@ function requirements(shifts: Shift[]): Shift[] {
 }
 
 function checked(shifts: Shift[]): Shift[] {
+  if (shifts.some(shift => Date.parse(shift.end) <= Date.parse(shift.start) || Date.parse(shift.end) - Date.parse(shift.start) > 48 * 3600000))
+    throw new ApiError(400, "משך משמרת בתבנית חייב להיות חיובי ועד 48 שעות");
   if (shifts.length > 300)
     throw new ApiError(400, "התבנית תיצור יותר מ־300 משמרות בשבוע");
   return shiftsSchema.parse(shifts);

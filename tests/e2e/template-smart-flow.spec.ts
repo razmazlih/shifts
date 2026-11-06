@@ -122,7 +122,7 @@ test("manager creates a reusable template, previews and applies the exact week p
     expect(restored.shifts).toEqual([]);
     expect(restored.publishedRevision).toBe(baseline.publishedRevision);
   } finally {
-    if (templateId) await request("/api/templates", "DELETE", { templateId });
+    if (templateId) await request("/api/templates", "DELETE", { templateId, revision: 0 });
     await worker?.dispose();
   }
 });

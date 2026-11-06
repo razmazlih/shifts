@@ -12,10 +12,30 @@ export function publicationChanges(before: Shift[], after: Shift[]): Publication
 }
 
 /** Public, personal work facts only: notes, locks and colleagues are irrelevant. */
-export function personalPublication(shifts: Shift[], employeeId: string) {
-  return shifts.flatMap(s => s.assignments.filter(a => a.employeeId === employeeId).map(a => ({
-    shiftId: s.id, title: s.title, group: s.group, start: a.start, end: a.end,
-  }))).sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end) || a.shiftId.localeCompare(b.shiftId));
+export interface PersonalPublishedWork {
+  shiftId: string;
+  title: string;
+  group: Shift["group"];
+  start: string;
+  end: string;
+}
+
+export function personalPublication(shifts: Shift[], employeeId: string): PersonalPublishedWork[] {
+  return shifts.flatMap(shift => {
+    const pieces = shift.assignments.filter(assignment => assignment.employeeId === employeeId)
+      .map(assignment => ({ start: Date.parse(assignment.start), end: Date.parse(assignment.end) }))
+      .sort((a, b) => a.start - b.start || a.end - b.end);
+    const periods: { start: number; end: number }[] = [];
+    for (const piece of pieces) {
+      const previous = periods.at(-1);
+      // An internal split of unchanged work is not a new personal schedule event.
+      if (previous && piece.start <= previous.end) previous.end = Math.max(previous.end, piece.end);
+      else periods.push({ ...piece });
+    }
+    return periods.map(period => ({ shiftId: shift.id, title: shift.title, group: shift.group,
+      start: new Date(period.start).toISOString(), end: new Date(period.end).toISOString(),
+    }));
+  }).sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end) || a.shiftId.localeCompare(b.shiftId));
 }
 
 export function affectedEmployeeIds(before: Shift[], after: Shift[]): string[] {

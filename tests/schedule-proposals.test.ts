@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { proposalSummary, scopedTemplateShifts, schedulingFingerprint, verifyProposalChanges } from "../src/lib/schedule-proposals";
+import { explainProposalIssues, proposalSummary, scopedTemplateShifts, schedulingFingerprint, verifyProposalChanges } from "../src/lib/schedule-proposals";
 import { localToISO } from "../src/lib/time";
-import { DEFAULT_RULES } from "../src/lib/scheduler";
+import { DEFAULT_RULES, validateSchedule } from "../src/lib/scheduler";
 import type { Employee, SchedulingScope, Shift } from "../src/lib/types";
 const scope: SchedulingScope = { days: [0], groups: ["PATROL"] };
 const start = localToISO("2030-06-02", "08:00"), end = localToISO("2030-06-02", "16:00");
@@ -51,5 +51,34 @@ describe("proposal invariants", () => {
     expect(result[1].group).toBe("PATROL");
     expect(result[1].assignments).toEqual([]);
     expect(() => scopedTemplateShifts([shift], template, { weekStart: "2030-06-02", mode: "repair", scope })).toThrow("נעול");
+  });
+});
+
+describe("preview gap explanations", () => {
+  const empty = { ...shift, required: 1, assignments: [] };
+  const explain = (shifts: Shift[], people: Employee[], selected = scope) => explainProposalIssues(
+    validateSchedule(shifts, people, DEFAULT_RULES), shifts, people, DEFAULT_RULES, [], selected,
+  ).filter(issue => issue.code === "UNDERSTAFFED");
+  it("explains that days or teams outside the selected scope were not changed", () => {
+    expect(explain([empty], [employee], { days: [1], groups: ["PATROL"] })[0].message).toContain("מחוץ לימים או לצוותים שנבחרו");
+  });
+  it("attaches actual absence and other-commitment reasons to the exact gap", () => {
+    const unavailable = { ...employee, timeOff: [{ start, end }] };
+    const otherWork = { ...shift, id: "other", required: 1 };
+    const message = explain([empty, otherWork], [unavailable])[0].message;
+    expect(message).toContain("חסר סייר בין 08:00 ל־16:00");
+    expect(message).toContain("היעדרות");
+    expect(message).toContain("חופפים");
+  });
+  it("reports an empty workforce without claiming schedule correctness", () => {
+    expect(explain([empty], [])[0].message).toContain("אין נתוני עובדים פעילים");
+  });
+  it("does not invent a rest conflict when a candidate can extend their original partial assignment", () => {
+    const partial = { ...empty, assignments: [{ employeeId: employee.id, start, end: localToISO("2030-06-02", "12:00") }] };
+    const before = structuredClone(partial);
+    const message = explain([partial], [employee])[0].message;
+    expect(message).toContain("נמצאו 1 מועמדים");
+    expect(message).toContain("אין הבטחה לפתרון מיטבי");
+    expect(partial).toEqual(before);
   });
 });

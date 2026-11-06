@@ -60,7 +60,7 @@ test("personal landing finds a published overnight beyond the selected week and 
   await enter(page);
   await expect(page.getByTestId("personal-main-shift")).toContainText(title);
   await expect(page.getByTestId("personal-main-shift")).toContainText("22:00–06:00");
-  await expect(page.getByText(/הסיום ביום הבא/)).toBeVisible();
+  await expect(page.getByTestId("personal-main-shift").getByText(/הסיום ביום הבא/)).toBeVisible();
   await expect(page.locator(".employee-home").getByRole("button", { name: "לוח הצוות", exact: true })).toBeVisible();
   await expect(page.getByText(draftTitle, { exact: true })).toHaveCount(0);
 });
@@ -106,13 +106,18 @@ test("personal cards remain readable at 360, 390, 768 and 1440 pixels", async ({
   await enter(page);
   for (const width of [360, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
+    await page.evaluate(async () => {
+      window.scrollTo(0, 0);
+      await document.fonts.ready;
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    });
     if (width <= 720) {
       // Wait for the existing sidebar's responsive slide-out transition before
       // inspecting or capturing the mobile layout; it must not cover the card.
       await expect.poll(() => page.locator(".sidebar").evaluate(element => element.getBoundingClientRect().left >= window.innerWidth)).toBe(true);
     }
     await expect(page.getByTestId("personal-main-shift")).toContainText(title);
-    await expect(page.getByText(/הסיום ביום הבא/)).toBeVisible();
+    await expect(page.getByTestId("personal-main-shift").getByText(/הסיום ביום הבא/)).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
     await page.screenshot({ path: `docs/screenshots/employee-home-${width}.png`, fullPage: true, animations: "disabled" });
   }

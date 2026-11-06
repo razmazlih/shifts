@@ -1,7 +1,8 @@
 import { Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
 import { db } from "./db";
-import { autoSchedule, inSchedulingScope, validateSchedule } from "./scheduler";
+import { autoSchedule, getCandidates, inSchedulingScope, validateSchedule } from "./scheduler";
+import { coverageGaps } from "./coverage";
 import { templateScope } from "./templates";
 import { addDays, localDate } from "./time";
 import { ApiError, shiftsSchema } from "./validation";
@@ -14,6 +15,7 @@ export interface SchedulingRequest {
   mode: SchedulingMode;
   scope: SchedulingScope;
   templateId?: string;
+  templateRevision?: number;
 }
 // PostgreSQL JSONB and schema parsing may reorder object keys. Equality must
 // compare content while retaining meaningful array order, never property order.
@@ -98,6 +100,31 @@ export function proposalSummary(before: Shift[], after: Shift[], issues: Issue[]
   };
 }
 
+/** Explain residual gaps in the saved preview; never change scheduling decisions. */
+export function explainProposalIssues(
+  issues: Issue[], shifts: Shift[], employees: Employee[], rules: Rules, context: Shift[], scope: SchedulingScope,
+): Issue[] {
+  return issues.map(issue => {
+    if (issue.code !== "UNDERSTAFFED") return issue;
+    const shift = shifts.find(item => item.id === issue.shiftId);
+    if (!shift) return issue;
+    if (!inSchedulingScope(shift, scope)) return { ...issue, message: `${issue.message}. המשמרת מחוץ לימים או לצוותים שנבחרו, ולכן לא בוצע בה שיבוץ.` };
+    const gap = coverageGaps(shift).find(item => item.message === issue.message);
+    if (!gap) return issue;
+    const candidates = getCandidates(shift, shifts, employees, rules, context, gap);
+    const eligible = candidates.filter(candidate => candidate.eligible);
+    let explanation: string;
+    if (!employees.some(employee => employee.active)) explanation = "אין נתוני עובדים פעילים להשלמת החוסר.";
+    else if (!eligible.length) {
+      const reasons = [...new Set(candidates.flatMap(candidate => candidate.reasons))].slice(0, 4);
+      explanation = `לא נמצא עובד מתאים לכל המקטע בלי לשנות שיבוצים קיימים${reasons.length ? `: ${reasons.join("; ")}` : ". יש לבדוק את נתוני הצוות"}. אפשר לבדוק חלוקת שעות ידנית.`;
+    } else {
+      explanation = `נמצאו ${eligible.length} מועמדים שמתאימים למקטע בבדיקה פרטנית, אך המנוע לא השלים את החוסר. יש לפתוח את המשמרת לבדיקה ידנית; אין הבטחה לפתרון מיטבי.`;
+    }
+    return { ...issue, message: `${issue.message}. ${explanation}` };
+  });
+}
+
 async function dependencies(weekStart: string, tx: Tx) {
   const [rows, rules, context] = await Promise.all([
     tx.employee.findMany(), getRules(tx), neighborContext(weekStart, tx),
@@ -139,11 +166,14 @@ export async function createSchedulingProposal(user: SessionUser, request: Sched
     if (request.templateId) {
       const template = await tx.template.findUnique({ where: { id: request.templateId } });
       if (!template) throw new ApiError(404, "התבנית לא נמצאה");
+      if (request.templateRevision !== undefined && template.revision !== request.templateRevision)
+        throw new ApiError(409, "התבנית השתנתה מאז הטעינה. יש לרענן לפני הכנת הצעה.");
       input = scopedTemplateShifts(before, { sourceWeek: template.sourceWeek, shifts: template.shifts as unknown as Shift[] }, request);
     }
     if (!input.some((shift) => inSchedulingScope(shift, request.scope)))
       throw new ApiError(400, "אין משמרות בתחום הפעולה. יש ליצור משמרות או לבחור תבנית.");
     const result = autoSchedule(input, employees, rules, context, request);
+    result.issues = explainProposalIssues(result.issues, result.shifts, employees, rules, context, request.scope);
     verifyProposalChanges(before, result.shifts, request.mode, request.scope);
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
     const proposal = await tx.scheduleProposal.create({ data: {
@@ -200,7 +230,7 @@ export async function applySchedulingProposal(user: SessionUser, proposalId: str
     return after;
   });
   const known = new Set(result.issues.map(identity));
-  return { ...result, autoSummary, issues: [...result.issues, ...appliedIssues.filter((issue) => !known.has(identity(issue)))] };
+  return { ...result, autoSummary, issues: [...result.issues, ...appliedIssues.filter((issue) => issue.code !== "UNDERSTAFFED" && !known.has(identity(issue)))] };
 }
 
 export async function cancelSchedulingProposal(user: SessionUser, proposalId: string) {

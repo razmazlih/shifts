@@ -54,6 +54,7 @@ test('smart scheduling repairs an overlap in the draft, reports changes and supp
   await page.getByText('אילו משמרות עודכנו?', { exact: true }).click();
   await expect(page.locator('.auto-result')).toContainText(second.title);
   await mkdir('output/playwright', { recursive: true });
+  await expect(page.locator('.toast')).toBeHidden();
   await page.screenshot({ path: 'output/playwright/smart-repair.png', fullPage: true });
   await page.locator('.schedule-actions > summary').click();
   await page.getByRole('button', { name: 'ביטול השינוי האחרון', exact: true }).click();

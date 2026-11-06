@@ -64,6 +64,7 @@ async function main() {
         });
         people.push({
           ...employee,
+          updatedAt: employee.updatedAt.toISOString(),
           groups: employee.groups as Employee["groups"],
           availability: [],
           timeOff: [],

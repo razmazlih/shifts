@@ -51,6 +51,8 @@ import { api } from "@/lib/utils";
 import { Modal } from "./ui/dialog";
 import { ScheduleTimeline } from "./schedule-timeline";
 import { TemplateBuilder } from "./template-builder";
+import { TemplateActions } from "./template-actions";
+import { RequestsPanel } from "./requests-panel";
 import { ShiftEditor } from "./shift-editor";
 import { EmployeeHome } from "./employee-home";
 import { AttentionQueue, SmartScheduleDialog, PublicationDialog } from "./manager-workflows";
@@ -78,7 +80,7 @@ export function ScheduleApp() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
-  const [view, setView] = useState<"home" | "schedule" | "employees" | "settings" | "monthly">(
+  const [view, setView] = useState<"home" | "schedule" | "employees" | "settings" | "monthly" | "requests">(
     "schedule",
   );
   const [mine, setMine] = useState(true);
@@ -108,6 +110,9 @@ export function ScheduleApp() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [smartOpen, setSmartOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [lastSavedTemplate, setLastSavedTemplate] = useState<Template | null>(null);
+  const [templateGroups, setTemplateGroups] = useState<Record<string, "ALL" | Group>>({});
   const [templateTab, setTemplateTab] = useState<"new" | "board">("new");
   const [attentionOnly, setAttentionOnly] = useState(false);
   const [templatesError, setTemplatesError] = useState("");
@@ -344,6 +349,14 @@ export function ScheduleApp() {
       setError((e as Error).message);
     }
   }
+  function replaceTemplate(template: Template) {
+    setTemplates(current => current.map(item => item.id === template.id ? template : item).sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite)));
+  }
+  function prepareTemplate(template: Template) {
+    setSelectedTemplate(template.id);
+    setPanel(null);
+    setSmartOpen(true);
+  }
   const navigate = (next: typeof view) => {
     setView(next);
     setMobileNav(false);
@@ -375,6 +388,7 @@ export function ScheduleApp() {
             <ChevronLeft size={15} />
           </button>
           <button className={view === "monthly" ? "nav-item active" : "nav-item"} onClick={() => navigate("monthly")}><Clock3 size={20} />{admin ? "סיכום חודשי" : "החודש שלי"}<ChevronLeft size={15} /></button>
+          <button className={view === "requests" ? "nav-item active" : "nav-item"} onClick={() => navigate("requests")}><History size={20} />{admin ? "בקשות עובדים" : "הבקשות שלי"}<ChevronLeft size={15} /></button>
           {admin && (
             <>
               <button
@@ -451,7 +465,7 @@ export function ScheduleApp() {
             <span>מרחב הצוות</span>
             <ChevronLeft size={14} />
             <strong>
-              {view === "home" ? "המשמרת שלי" : view === "schedule"
+              {view === "requests" ? admin ? "בקשות עובדים" : "הבקשות שלי" : view === "home" ? "המשמרת שלי" : view === "schedule"
                 ? admin ? "לוח משמרות" : "המשמרות שלי"
                 : view === "monthly"
                   ? admin ? "סיכום חודשי" : "החודש שלי"
@@ -489,7 +503,9 @@ export function ScheduleApp() {
             </div>
           )}
           {view === "home" && user && !admin ? (
-            <EmployeeHome onViewTeam={() => { setMine(false); navigate("schedule"); }} onViewMonth={() => navigate("monthly")} />
+            <EmployeeHome onViewTeam={() => { setMine(false); navigate("schedule"); }} onViewMonth={() => navigate("monthly")} onViewRequests={() => navigate("requests")} />
+          ) : view === "requests" && user ? (
+            <RequestsPanel user={user} onScheduleChanged={() => void reload(true)} onOpenWeek={requestedWeek => { changeWeek(requestedWeek); navigate("schedule"); }} />
           ) : view === "monthly" && user ? (
             <MonthlyReportPanel user={user} />
           ) : view === "employees" && admin ? (
@@ -739,7 +755,7 @@ export function ScheduleApp() {
                       <Plus size={18} />
                       משמרת חדשה
                     </button>
-                    <button className="button primary workflow-smart" aria-label="שיבוץ חכם" disabled={busy || loading} onClick={() => setSmartOpen(true)}>{busy ? <LoaderCircle size={18} className="spin" /> : <Sparkles size={18} />}{busy ? "מכין את השבוע…" : "שיבוץ חכם"}</button>
+                    <button className="button primary workflow-smart" aria-label="שיבוץ חכם" disabled={busy || loading} onClick={() => { if (!selectedTemplate && !data?.shifts.length) setSelectedTemplate(templates.find(template => template.favorite)?.id ?? ""); setSmartOpen(true); }}>{busy ? <LoaderCircle size={18} className="spin" /> : <Sparkles size={18} />}{busy ? "מכין את השבוע…" : "שיבוץ חכם"}</button>
                     </div>
                   )}
                   {!admin && (
@@ -1056,7 +1072,7 @@ export function ScheduleApp() {
           {admin && data?.issues.filter(issue => issue.shiftId === source.id).map((issue, index) => <small key={index}>{issue.message}</small>)}
         </button>)}</div>
       </Modal>}
-      {admin && data && smartOpen && !panel && <SmartScheduleDialog data={data} templates={templates} templatesError={templatesError} selectedTemplate={selectedTemplate} initialTarget={templateTargets[selectedTemplate]} onSelectTemplate={setSelectedTemplate} onCreateTemplate={() => { setTemplateTab("new"); void openPanel("templates"); }} onClose={() => setSmartOpen(false)} onApplied={value => { setData(value); setSmartOpen(false); setToast("ההצעה שנבדקה נשמרה בטיוטה"); }} />}
+      {admin && data && smartOpen && !panel && <SmartScheduleDialog data={data} templates={templates} templatesError={templatesError} selectedTemplate={selectedTemplate} initialTarget={templateTargets[selectedTemplate]} initialGroups={templateGroups[selectedTemplate] && templateGroups[selectedTemplate] !== "ALL" ? [templateGroups[selectedTemplate] as Group] : undefined} onSelectTemplate={setSelectedTemplate} onCreateTemplate={() => { setEditingTemplate(null); setTemplateTab("new"); void openPanel("templates"); }} onClose={() => setSmartOpen(false)} onApplied={value => { setData(value); setSmartOpen(false); setToast("ההצעה שנבדקה נשמרה בטיוטה"); }} />}
       {admin && data && publishOpen && <PublicationDialog data={data} onClose={() => setPublishOpen(false)} onOpenShift={shift => setEditor({ shift, isNew: false })} onPublished={value => { setData(value); setPublishOpen(false); setToast("הסידור פורסם וזמין לעובדים"); }} />}
       {confirm && (
         <Modal
@@ -1094,7 +1110,7 @@ export function ScheduleApp() {
       {panel && (
         <Modal
           open
-          onClose={() => setPanel(null)}
+          onClose={() => !busy && setPanel(null)}
           wide={panel === "templates"}
           title={panel === "history" ? "היסטוריית שינויים" : "תבניות שבוע"}
           description={
@@ -1140,14 +1156,16 @@ export function ScheduleApp() {
             ) : (
               <>
                 <div className="template-tabs" role="group" aria-label="אופן יצירת תבנית">
-                  <button className={`button ${templateTab === "new" ? "primary" : "secondary"}`} aria-pressed={templateTab === "new"} onClick={() => setTemplateTab("new")}>יצירת תבנית חדשה</button>
+                  <button className={`button ${templateTab === "new" ? "primary" : "secondary"}`} aria-pressed={templateTab === "new"} onClick={() => { setEditingTemplate(null); setTemplateTab("new"); }}>יצירת תבנית חדשה</button>
                   <button className={`button ${templateTab === "board" ? "primary" : "secondary"}`} aria-pressed={templateTab === "board"} onClick={() => setTemplateTab("board")}>שמירת הלוח כתבנית</button>
                 </div>
-                {templateTab === "new" ? <TemplateBuilder weekStart={week} onCreated={(template) => {
-                  setTemplates((current) => [template, ...current]);
-                  setSelectedTemplate(template.id);
-                  setPanel(null);
-                  setToast("התבנית מוכנה. לחצו על שיבוץ חכם כדי למלא את השבוע.");
+                {templateTab === "new" ? <TemplateBuilder key={editingTemplate?.id ?? "new"} weekStart={week} template={editingTemplate ?? undefined} onSavingChange={setBusy} onCreated={(template) => {
+                  if (editingTemplate) replaceTemplate(template);
+                  else setTemplates(current => [template, ...current]);
+                  setEditingTemplate(null);
+                  setLastSavedTemplate(template);
+                  setToast("התבנית נשמרה. שבועות קיימים לא השתנו.");
+                  prepareTemplate(template);
                 }} /> : <>
                 <p className="template-help">שמרו את כל השבוע, יום מסוים, או יום שחוזר בכל שבעת ימי השבוע. התבניות כוללות משמרות ודרישות כוח אדם ללא שיבוצים והערות.</p>
                 <div className="template-save">
@@ -1177,19 +1195,15 @@ export function ScheduleApp() {
                     onClick={async () => {
                       setBusy(true);
                       try {
-                        await api("/api/templates", "POST", {
+                        const { template } = await api<{ template: Template }>("/api/templates", "POST", {
                           name: templateName,
                           weekStart: week,
                           ...(templateMode !== "week" ? { sourceDay: templateSourceDay, repeatAllDays: templateMode === "repeat" } : {}),
                         });
                         setTemplateName("");
-                        setTemplates(
-                          (
-                            await api<{ templates: Template[] }>(
-                              "/api/templates",
-                            )
-                          ).templates,
-                        );
+                        setTemplates(current => [template, ...current]);
+                        setLastSavedTemplate(template);
+                        setSelectedTemplate(template.id);
                         setToast("התבנית נשמרה");
                       } catch (e) {
                         setError((e as Error).message);
@@ -1202,12 +1216,13 @@ export function ScheduleApp() {
                   </button>
                 </div>
                 </>}
+                {lastSavedTemplate && <div className="notice template-saved"><span>התבנית ״{lastSavedTemplate.name}״ נשמרה לשימוש חוזר.</span><button className="button secondary" onClick={() => prepareTemplate(lastSavedTemplate)}>הכנת שבוע מהתבנית</button></div>}
                 <h3 className="saved-templates-title">התבניות השמורות</h3>
                 {templates.map((t) => (
                   <div className="template-row" key={t.id}>
                     <Layers size={20} />
                     <div>
-                      <strong>{t.name}</strong>
+                      <strong>{t.name}{t.favorite && <span className="tag green">מועדפת שלי</span>}</strong>
                       <small>{new Set(t.shifts.map((shift) => localDate(shift.start))).size === 1 ? "תבנית יומית" : "תבנית שבועית"} · {t.shifts.length} משמרות</small>
                       {new Set(t.shifts.map((shift) => localDate(shift.start))).size === 1 && <label>יום היעד
                         <select value={templateTargets[t.id] ?? String(templateSourceWeekday(t))} onChange={(e) => setTemplateTargets((current) => ({ ...current, [t.id]: e.target.value }))}>
@@ -1215,23 +1230,19 @@ export function ScheduleApp() {
                           <option value="all">כל השבוע</option>
                         </select>
                       </label>}
+                      <label>צוותים להחלה<select value={templateGroups[t.id] ?? "ALL"} onChange={event => setTemplateGroups(current => ({ ...current, [t.id]: event.target.value as "ALL" | Group }))}><option value="ALL">אחמ״שים וסיורים</option><option value="MANAGERS">אחמ״שים בלבד</option><option value="PATROL">סיורים בלבד</option></select></label>
                     </div>
-                    <button
-                      className="button secondary"
-                      onClick={() => {
+                    <button className="button primary" disabled={busy} onClick={() => prepareTemplate(t)}>הכנת שבוע</button>
+                    <TemplateActions template={t} disabled={busy} onApply={() => {
                         setPanel(null);
                         confirmMutation(
-                          "להחיל את התבנית?",
-                          `התבנית ״${t.name}״ תחליף את המשמרות ${new Set(t.shifts.map((shift) => localDate(shift.start))).size === 1 && templateTargets[t.id] !== "all" ? "ביום היעד בלבד" : "בכל השבוע"}. ניתן לבטל את ההחלה. בדקו את השיבוצים לפני הפרסום.`,
-                          "החלת תבנית",
+                          "להחליף משמרות ללא שיבוץ?",
+                          `התבנית ״${t.name}״ תחליף את המשמרות ${new Set(t.shifts.map((shift) => localDate(shift.start))).size === 1 && templateTargets[t.id] !== "all" ? "ביום היעד בלבד" : "בכל השבוע"} בצוותים: ${templateGroups[t.id] && templateGroups[t.id] !== "ALL" ? GROUP_LABELS[templateGroups[t.id] as Group] : "אחמ״שים וסיורים"}. השיבוצים הקיימים בתחום הזה יוסרו; לא יבוצע שיבוץ עובדים. אפשר לבטל דרך היסטוריית השבוע. הסידור שפורסם נשאר ללא שינוי.`,
+                          "החלת משמרות ללא שיבוץ",
                           "/api/templates/apply",
-                          { templateId: t.id, ...(new Set(t.shifts.map((shift) => localDate(shift.start))).size === 1 ? templateTargets[t.id] === "all" ? { allDays: true } : { targetDay: Number(templateTargets[t.id] ?? templateSourceWeekday(t)) } : {}) },
+                          { templateId: t.id, templateRevision: t.revision ?? 0, scope: { days: new Set(t.shifts.map(shift => localDate(shift.start))).size === 1 && templateTargets[t.id] !== "all" ? [Number(templateTargets[t.id] ?? templateSourceWeekday(t))] : [0, 1, 2, 3, 4, 5, 6], groups: templateGroups[t.id] && templateGroups[t.id] !== "ALL" ? [templateGroups[t.id]] : ["MANAGERS", "PATROL"] }, ...(new Set(t.shifts.map((shift) => localDate(shift.start))).size === 1 ? templateTargets[t.id] === "all" ? { allDays: true } : { targetDay: Number(templateTargets[t.id] ?? templateSourceWeekday(t)) } : {}) },
                         );
-                      }}
-                    >
-                      החלה
-                    </button>
-                    <button className="button secondary" disabled={busy} aria-label={`מחיקת התבנית ${t.name}`} onClick={() => {
+                      }} onUpdated={replaceTemplate} onDuplicated={template => { setTemplates(current => [template, ...current]); setLastSavedTemplate(template); setToast("נוצר עותק עצמאי של התבנית"); }} onEdit={() => { setEditingTemplate(t); setTemplateTab("new"); }} onDelete={() => {
                       setPanel(null);
                       setConfirm({
                         title: "למחוק את התבנית?",
@@ -1241,7 +1252,7 @@ export function ScheduleApp() {
                         run: async () => {
                           setBusy(true);
                           try {
-                            await api("/api/templates", "DELETE", { templateId: t.id });
+                            await api("/api/templates", "DELETE", { templateId: t.id, revision: t.revision ?? 0 });
                             setTemplates((current) => current.filter((item) => item.id !== t.id));
                             if (selectedTemplate === t.id) setSelectedTemplate("");
                             setToast("התבנית נמחקה");
@@ -1253,7 +1264,7 @@ export function ScheduleApp() {
                           }
                         },
                       });
-                    }}><Trash2 size={16} />מחיקה</button>
+                    }} />
                   </div>
                 ))}
                 {templates.length === 0 && (

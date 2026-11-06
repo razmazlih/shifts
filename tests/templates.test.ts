@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyTemplateShifts, createTemplateEntries, createTemplateShifts, templateEntriesSchema, templateScope } from "../src/lib/templates";
 import { localDate, localTime, localToISO } from "../src/lib/time";
+import { templateToEntries } from "../src/lib/template-definitions";
 import type { Shift } from "../src/lib/types";
 
 const week = "2026-11-01";
@@ -77,5 +78,28 @@ describe("day and week templates", () => {
     const result = applyTemplateShifts([], { shifts: [make(week), make("2026-11-02")], sourceWeek: week }, "2026-11-08");
     expect(result.map((s) => localDate(s.start))).toEqual(["2026-11-08", "2026-11-09"]);
     expect(result.every((s) => s.assignments.length === 0 && !s.note)).toBe(true);
+  });
+});
+
+
+describe("template editing compatibility", () => {
+  it("round trips repeated requirements including duplicate same-day rows and 48-hour spans", () => {
+    const shifts = createTemplateEntries([
+      { title: "רצף", group: "PATROL", startTime: "08:00", endTime: "08:00", endDayOffset: 2, required: 2, days: [0, 2] },
+      { title: "רצף", group: "PATROL", startTime: "08:00", endTime: "08:00", endDayOffset: 2, required: 2, days: [0] },
+    ], week);
+    const entries = templateToEntries({ sourceWeek: week, shifts });
+    expect(entries).toHaveLength(2);
+    expect(entries[0].days).toEqual([0, 2]);
+    expect(entries[1].days).toEqual([0]);
+    const normalized = (items: Shift[]) => items.map(shift => ({ title: shift.title, group: shift.group, start: shift.start, end: shift.end, required: shift.required })).sort((a, b) => a.start.localeCompare(b.start));
+    expect(normalized(createTemplateEntries(entries, week))).toEqual(normalized(shifts));
+    expect(shifts.every(shift => Date.parse(shift.end) - Date.parse(shift.start) === 48 * 3600000)).toBe(true);
+  });
+  it("preserves legacy overnight inference and rejects negative or excessive explicit duration", () => {
+    const base = { title: "לילה", group: "PATROL", startTime: "22:00", endTime: "06:00", required: 1, days: [0] };
+    expect(localDate(createTemplateEntries([base], week)[0].end)).toBe("2026-11-02");
+    expect(templateEntriesSchema.safeParse([{ ...base, endDayOffset: 0 }]).success).toBe(false);
+    expect(templateEntriesSchema.safeParse([{ ...base, startTime: "06:00", endTime: "08:00", endDayOffset: 2 }]).success).toBe(false);
   });
 });

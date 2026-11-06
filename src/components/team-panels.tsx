@@ -16,7 +16,7 @@ import {
   type Group,
   type Rules,
 } from "@/lib/types";
-import { addDays, localDate, localToISO } from "@/lib/time";
+import { addDays, localDate, localTime, localToISO } from "@/lib/time";
 import { api } from "@/lib/utils";
 import { Modal } from "./ui/dialog";
 const days = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
@@ -432,7 +432,15 @@ export function EmployeesPanel({
                   הוספת חופשה
                 </button>
               </div>
-              {employee.timeOff.map((t, i) => (
+              {employee.timeOff.map((t, i) => t.requestId ? (
+                <div className="notice" key={t.requestId}>
+                  <div><strong>אילוץ מבקשה שאושרה — מנוהל דרך בקשות העובדים</strong>
+                    <p><bdi dir="ltr">{localDate(t.start)} {localTime(t.start)} — {localDate(t.end)} {localTime(t.end)}</bdi></p>
+                    {t.reason && <p>{t.reason}</p>}
+                    <small>לביטול האילוץ, פתחו את הבקשה ובחרו ״ביטול האישור״.</small>
+                  </div>
+                </div>
+              ) : (
                 <div className="timeoff-row" key={i}>
                   <label>
                     מתאריך
@@ -558,6 +566,7 @@ export function SettingsPanel({
   onUpdated: () => void;
 }) {
   const [rules, setRules] = useState(initialRules);
+  const [expectedRules, setExpectedRules] = useState(initialRules);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -566,7 +575,8 @@ export function SettingsPanel({
     setError("");
     setMessage("");
     try {
-      await api("/api/settings", "PUT", { rules });
+      await api("/api/settings", "PUT", { rules, expectedRules });
+      setExpectedRules(rules);
       setMessage("הגדרות השיבוץ נשמרו. הלוח נבדק מחדש לפי הכללים המעודכנים.");
       onUpdated();
     } catch (e) {

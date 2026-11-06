@@ -309,6 +309,7 @@ export function getCandidates(
   employees: Employee[],
   rules: Rules,
   context: Shift[] = [],
+  assignmentWindow?: Pick<Assignment, "start" | "end">,
 ): {
   employee: Employee;
   eligible: boolean;
@@ -320,8 +321,10 @@ export function getCandidates(
     const candidate = {
       ...shift,
       assignments: [
-        ...shift.assignments.filter((a) => a.employeeId !== employee.id),
-        { employeeId: employee.id, start: shift.start, end: shift.end },
+        // Optional gap checks add work without replacing this employee's
+        // existing segments, so overlaps, rest and quotas remain authoritative.
+        ...(assignmentWindow ? shift.assignments : shift.assignments.filter((a) => a.employeeId !== employee.id)),
+        { employeeId: employee.id, start: assignmentWindow?.start ?? shift.start, end: assignmentWindow?.end ?? shift.end },
       ],
     };
     const reasons = validateSchedule([candidate], employees, rules, base)

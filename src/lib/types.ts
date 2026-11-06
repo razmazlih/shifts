@@ -17,6 +17,7 @@ export interface Shift {
   note?: string;
 }
 export interface TimeOff {
+  requestId?: string;
   start: string;
   end: string;
   reason?: string;
@@ -28,6 +29,7 @@ export interface Availability {
 }
 export interface Employee {
   id: string;
+  updatedAt?: string;
   name: string;
   email?: string;
   active: boolean;
@@ -77,6 +79,8 @@ export interface WeekData {
 }
 export interface Template {
   id: string;
+  revision?: number;
+  favorite?: boolean;
   name: string;
   shifts: Shift[];
   sourceWeek: string;
@@ -86,6 +90,7 @@ export interface TemplateEntry {
   group: Group;
   startTime: string;
   endTime: string;
+  endDayOffset?: number;
   required: number;
   days: number[];
 }

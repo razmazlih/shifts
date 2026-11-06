@@ -24,6 +24,8 @@ model User {
   audits       Audit[]
   publications Publication[]
   scheduleProposals ScheduleProposal[]
+  requestDecisions EmployeeRequest[] @relation("RequestReviewer")
+  templateFavorites TemplateFavorite[]
   createdAt    DateTime      @default(now())
 }
 
@@ -38,6 +40,8 @@ model Employee {
   timeOff        Json     @default("[]")
   preferredDays  Int[]
   user           User?
+  requests       EmployeeRequest[]
+  updates        EmployeeUpdate[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
@@ -71,6 +75,7 @@ model Week {
 }
 
 model Publication {
+  updates   EmployeeUpdate[]
   id        String   @id @default(cuid())
   weekStart String
   week      Week     @relation(fields: [weekStart], references: [weekStart], onDelete: Restrict)
@@ -105,6 +110,8 @@ model Settings {
 }
 
 model Template {
+  revision   Int @default(0)
+  favorites  TemplateFavorite[]
   id         String   @id @default(cuid())
   name       String
   sourceWeek String
@@ -129,4 +136,67 @@ model ScheduleProposal {
   createdAt   DateTime @default(now())
 
   @@index([actorId, expiresAt])
+}
+
+enum EmployeeRequestKind {
+  ABSENCE
+  CONSTRAINT
+}
+
+enum EmployeeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model EmployeeRequest {
+  submissionKey String
+  id           String @id @default(cuid())
+  employeeId   String
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  kind         EmployeeRequestKind
+  start        DateTime
+  end          DateTime
+  reason       String @default("")
+  status       EmployeeRequestStatus @default(PENDING)
+  revision     Int @default(0)
+  decisionNote String @default("")
+  reviewedById String?
+  reviewedBy   User? @relation("RequestReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+  reviewedAt   DateTime?
+  history      Json @default("[]")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([employeeId, createdAt])
+  @@index([status, createdAt])
+  @@unique([employeeId, submissionKey])
+}
+
+model TemplateFavorite {
+  userId     String
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  templateId String
+  template   Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@id([userId, templateId])
+}
+
+// One personal event per publication. The payload never includes colleagues,
+// managerial notes, locks or availability details.
+model EmployeeUpdate {
+  id             String @id @default(cuid())
+  publicationId  String
+  publication    Publication @relation(fields: [publicationId], references: [id], onDelete: Restrict)
+  employeeId     String
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  weekStart      String
+  changes        Json
+  openedAt       DateTime?
+  acknowledgedAt DateTime?
+  createdAt      DateTime @default(now())
+
+  @@unique([publicationId, employeeId])
+  @@index([employeeId, createdAt, id])
 }

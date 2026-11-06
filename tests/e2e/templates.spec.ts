@@ -45,7 +45,7 @@ test.beforeAll(async () => {
   }
 });
 test.afterAll(async () => {
-  for (const templateId of created) await admin.delete("/api/templates", payload({ templateId }));
+  for (const templateId of created) await admin.delete("/api/templates", payload({ templateId, revision: 0 }));
   await admin?.dispose();
   await worker?.dispose();
 });
@@ -82,8 +82,8 @@ test("daily templates replace one chosen day or repeat overnight shifts across t
   expect((await apply(weekly.id, {})).status()).toBe(200);
   expect((await read()).shifts).toHaveLength(7);
   const beforeDelete = await read();
-  expect((await worker.delete("/api/templates", payload({ templateId: template.id }))).status()).toBe(403);
-  expect((await admin.delete("/api/templates", payload({ templateId: template.id }))).status()).toBe(200);
+  expect((await worker.delete("/api/templates", payload({ templateId: template.id, revision: template.revision ?? 0 }))).status()).toBe(403);
+  expect((await admin.delete("/api/templates", payload({ templateId: template.id, revision: template.revision ?? 0 }))).status()).toBe(200);
   expect((await read()).shifts).toEqual(beforeDelete.shifts);
   expect((await apply(template.id, { targetDay: 1 })).status()).toBe(404);
 });
@@ -114,6 +114,7 @@ test("manager can save a daily template and delete it through confirmation", asy
   await expect(row).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: "/private/tmp/shifts-templates-mobile.png", fullPage: true });
+  await row.locator(".template-management-actions summary").click();
   await row.getByRole("button", { name: /מחיקה|מחיקת/ }).click();
   await page.getByRole("dialog").getByRole("button", { name: /מחיקת תבנית|מחיקה/, exact: false }).click();
   await expect(page.getByRole("dialog").getByText("שם התבנית", { exact: true })).toBeVisible();
