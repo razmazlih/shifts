@@ -83,6 +83,7 @@ export function ScheduleApp() {
   const [editor, setEditor] = useState<{ shift: Shift; isNew: boolean } | null>(
     null,
   );
+  const [sourceChoices, setSourceChoices] = useState<Shift[] | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [panel, setPanel] = useState<"history" | "templates" | null>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -874,9 +875,9 @@ export function ScheduleApp() {
                   </div>
                 ) : (
                   <ScheduleTimeline dates={dates} shifts={shifts} admin={admin} group={group} onAdd={newShift}
-                    renderCard={(shift) => <ShiftCard key={shift.id} shift={shift} data={data!} admin={admin}
+                    renderCard={(shift, sources) => <ShiftCard key={shift.id} shift={shift} sources={sources} data={data!} admin={admin}
                       mine={shift.assignments.some((a) => a.employeeId === user?.employeeId)}
-                      onClick={() => { if (!busy && !loading) setEditor({ shift, isNew: false }); }} />}
+                      onClick={() => { if (!busy && !loading) { if (sources.length > 1) setSourceChoices(sources); else setEditor({ shift: sources[0], isNew: false }); } }} />}
                   />
                 )}
                 <footer className="calendar-footer">
@@ -1041,6 +1042,13 @@ export function ScheduleApp() {
             </div>
           </Modal>
         ))}
+      {sourceChoices && <Modal open onClose={() => setSourceChoices(null)} title="פירוט השיבוצים" description="השורה בלוח מאחדת שעות עבודה חופפות. בחרו שיבוץ כדי לראות פרטים ולערוך אותו.">
+        <div className="editor-body source-choice-list">{sourceChoices.map(source => <button className="source-choice" key={source.id} onClick={() => { setSourceChoices(null); setEditor({ shift: source, isNew: false }); }}>
+          <strong>{source.title}</strong><span dir="ltr">{localTime(source.start)}–{localTime(source.end)}</span>
+          <span>{source.assignments.map(a => data?.employees.find(e => e.id === a.employeeId)?.name).filter(Boolean).join(" · ") || "טרם שובץ"}</span>
+          {admin && data?.issues.filter(issue => issue.shiftId === source.id).map((issue, index) => <small key={index}>{issue.message}</small>)}
+        </button>)}</div>
+      </Modal>}
       {admin && smartOpen && !panel && (
         <Modal open onClose={() => !busy && setSmartOpen(false)} title="שיבוץ חכם" description="בוחרים אילו משמרות לשבץ. המערכת מתאימה עובדים לפי זמינות, מכסות וכללי הצוות.">
           <div className="editor-body smart-schedule-body">
@@ -1283,87 +1291,44 @@ export function ScheduleApp() {
 }
 function ShiftCard({
   shift,
+  sources,
   data,
   admin,
   mine,
   onClick,
 }: {
   shift: Shift;
+  sources: Shift[];
   data: WeekData;
   admin: boolean;
   mine: boolean;
   onClick: () => void;
 }) {
-  const short = admin && hasCoverageGap(shift);
+  const short = admin && sources.some(hasCoverageGap);
   const issues = data.issues.filter(
-    (i) => admin && i.shiftId === shift.id,
+    (i) => admin && sources.some(source => source.id === i.shiftId),
   );
   const severity = issues.some((i) => i.severity === "error")
     ? "error" : issues.length > 0 ? "warning" : "";
+  const names = shift.assignments.map(a => data.employees.find(e => e.id === a.employeeId)?.name || "עובד");
+  const splitHours = shift.assignments.some(a => a.start !== shift.start || a.end !== shift.end);
+  const overnight = localDate(shift.start) !== localDate(shift.end);
   return (
     <button
       className={`shift-card ${shift.group === "PATROL" ? "patrol" : ""} ${short ? "short-staffed" : ""} ${severity ? `has-${severity}` : ""} ${mine && !admin ? "my-shift" : ""}`}
       onClick={onClick}
-      title={`${shift.title} · ${localTime(shift.start)}–${localTime(shift.end)} · ${shift.assignments.map(a => data.employees.find(e => e.id === a.employeeId)?.name || "עובד").join(", ")}${issues.length ? ` · ${issues.map(i => i.message).join(" · ")}` : ""}`}
-      aria-label={`${shift.title}, ${localTime(shift.start)}–${localTime(shift.end)}${localDate(shift.start) !== localDate(shift.end) ? ", מסתיימת ביום הבא" : ""}${issues.length ? ", דורש טיפול" : short ? ", נדרש שיבוץ" : ""}, לחצו לפרטים`}
+      title={`${shift.title} · ${names.join(", ") || "טרם שובץ"} · לחצו לפרטים`}
+      aria-label={`${shift.title}, ${names.join(", ") || "טרם שובץ"}, ${localTime(shift.start)}–${localTime(shift.end)}${overnight ? ", מסתיימת ביום הבא" : ""}${issues.length ? ", דורש טיפול" : short ? ", נדרש שיבוץ" : ""}, לחצו לפרטים`}
     >
       <div className="shift-card-top">
-        <span className="shift-time" dir="ltr">
-          <span>{localTime(shift.start)}</span><span className="shift-time-dash">–</span><span>{localTime(shift.end)}</span>
-        </span>
-        {localDate(shift.start) !== localDate(shift.end) && (
-          <small className="overnight">
-            +
-            {Math.round(
-              (Date.parse(localDate(shift.end)) -
-                Date.parse(localDate(shift.start))) /
-                86400000,
-            )}
-          </small>
-        )}
-        {issues.length > 0 && <AlertCircle size={13} />}
+        <span className="shift-time" dir="ltr">{localTime(shift.start)}–{localTime(shift.end)}</span>
+        {overnight && <small className="overnight">+{Math.round((Date.parse(localDate(shift.end)) - Date.parse(localDate(shift.start))) / 86400000)}</small>}
       </div>
-      <strong className="shift-title">{shift.title}</strong>
-      <div className="shift-people">
-        {shift.assignments.slice(0, 3).map((a, i) => (
-          <span key={`${a.employeeId}-${i}`}>
-            <span className="person-dot" />
-            {data.employees.find((e) => e.id === a.employeeId)?.name || "עובד"}
-            {!admin && a.employeeId === data.user.employeeId && (
-              <small> (אני)</small>
-            )}
-          </span>
-        ))}
-        {shift.assignments.length > 3 && (
-          <small>ועוד {shift.assignments.length - 3} עובדים</small>
-        )}
-      </div>
-      {issues.length > 0 && (
-        <span className="shift-issues">
-          <span className="shift-issue-summary">
-            <AlertCircle size={13} aria-hidden="true" />
-            <span>
-              {issues[0].employeeId && <b>{data.employees.find((e) => e.id === issues[0].employeeId)?.name || "עובד לא מזוהה"}: </b>}
-              {issues[0].message}
-            </span>
-          </span>
-          {issues.length > 1 && <small>ועוד {issues.length - 1} לבדיקה · לחצו לפרטים</small>}
-        </span>
-      )}
-      {admin && issues.length === 0 && (short ? (
-        <span className="shift-warning">
-          <AlertCircle size={12} />
-          {shift.assignments.length === 0
-            ? "ממתין לשיבוץ"
-            : "כיסוי חלקי — נדרש שיבוץ"}
-        </span>
-      ) : (
-        <span className="shift-covered">
-          <Check size={12} />
-          כיסוי מלא · {shift.required} עמדות
-        </span>
-      ))}
-      {admin && shift.note && <span className="shift-note">{shift.note}</span>}
+      <strong className="shift-title">{names.join(" · ") || "טרם שובץ"}</strong>
+      <span className="shift-group">{GROUP_LABELS[shift.group]}</span>
+      {splitHours && <div className="shift-people">{shift.assignments.map((a, i) => <span key={`${a.employeeId}-${i}`}>
+        {names[i]} <span dir="ltr">{localTime(a.start)}–{localTime(a.end)}</span>
+      </span>)}</div>}
     </button>
   );
 }

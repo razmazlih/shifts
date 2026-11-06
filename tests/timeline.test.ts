@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTimelineBands, getTimelineRange, layoutTimelineShifts } from "../src/lib/timeline";
+import { buildTimelineBands, getTimelineRange, layoutTimelineShifts, summarizeTimelineShifts } from "../src/lib/timeline";
 import { localToISO } from "../src/lib/time";
 import type { Shift } from "../src/lib/types";
 
@@ -102,5 +102,87 @@ describe("shared timeline bands", () => {
     expect(bands[1]).toMatchObject({ start: 480, end: 540, height: 228 });
     expect(bands[1].days["2026-11-06"]).toHaveLength(5);
     expect(bands[2].height).toBe(196);
+  });
+});
+
+
+describe("presentation shift summaries", () => {
+  const assigned = (id: string, start: string, end: string, employeeId = "employee") => {
+    const original = shift(id, start, end);
+    original.assignments = [{ employeeId, start: original.start, end: original.end }];
+    return original;
+  };
+
+  it("deduplicates identical assignments and retains all sources without mutating them", () => {
+    const originals = [assigned("a", "07:00", "16:00"), assigned("b", "07:00", "16:00")];
+    originals[0].note = "preserved only on source";
+    const snapshot = structuredClone(originals);
+    const result = summarizeTimelineShifts(originals);
+    expect(result).toHaveLength(1);
+    expect(result[0].shift.assignments).toHaveLength(1);
+    expect(result[0].shift.required).toBe(1);
+    expect(result[0].shift.note).toBeUndefined();
+    expect(result[0].sources).toEqual(originals);
+    expect(originals).toEqual(snapshot);
+    expect(summarizeTimelineShifts([...originals].reverse())).toEqual(result);
+  });
+
+  it("unions overlapping and touching actual employee intervals", () => {
+    const a = assigned("a", "07:00", "12:00");
+    const b = assigned("b", "10:00", "16:00");
+    const c = assigned("c", "16:00", "18:00");
+    // The displayed union follows assignments rather than enclosing shift hours.
+    a.assignments[0].start = localToISO("2026-11-06", "08:00");
+    const result = summarizeTimelineShifts([a, b, c]);
+    expect(result).toHaveLength(1);
+    expect(Date.parse(result[0].shift.start)).toBe(Date.parse(a.assignments[0].start));
+    expect(Date.parse(result[0].shift.end)).toBe(Date.parse(c.end));
+    expect(result[0].sources).toEqual([a, b, c]);
+  });
+
+  it("keeps disjoint intervals and different groups separate", () => {
+    const a = assigned("a", "07:00", "10:00");
+    const b = assigned("b", "11:00", "16:00");
+    const patrol = { ...a, id: "patrol", group: "PATROL" as const };
+    const result = summarizeTimelineShifts([a, b, patrol]);
+    expect(result).toHaveLength(3);
+    expect(result.every((item) => item.sources.length === 1)).toBe(true);
+  });
+
+  it("groups different employees with identical union hours into one synthetic shift", () => {
+    const a = assigned("a", "07:00", "16:00", "alice");
+    const b = assigned("b", "07:00", "12:00", "bob");
+    const c = assigned("c", "12:00", "16:00", "bob");
+    const result = summarizeTimelineShifts([a, b, c]);
+    expect(result).toHaveLength(1);
+    expect(result[0].shift.assignments.map((item) => item.employeeId)).toEqual(["alice", "bob"]);
+    expect(result[0].shift.required).toBe(2);
+    expect(result[0].sources).toEqual([a, b, c]);
+  });
+
+  it("groups only exact unassigned intervals and keeps distinct durations", () => {
+    const a = shift("a", "07:00", "16:00");
+    const b = shift("b", "07:00", "16:00");
+    const c = shift("c", "07:00", "15:00");
+    const result = summarizeTimelineShifts([a, b, c]);
+    expect(result).toHaveLength(2);
+    expect(result.map((item) => item.sources.length).sort()).toEqual([1, 2]);
+    expect(result.every((item) => item.shift.assignments.length === 0 && item.shift.required === 0)).toBe(true);
+  });
+
+  it("keeps overnight source dates separate even when employee intervals touch", () => {
+    const a = shift("night", "22:00", "06:00", "2026-11-07");
+    a.assignments = [{ employeeId: "employee", start: a.start, end: a.end }];
+    const b = { ...assigned("morning", "06:00", "10:00"), start: localToISO("2026-11-07", "06:00"), end: localToISO("2026-11-07", "10:00") };
+    b.assignments = [{ employeeId: "employee", start: b.start, end: b.end }];
+    expect(summarizeTimelineShifts([a, b])).toHaveLength(2);
+  });
+
+  it("exposes the original day when an overnight assignment starts after midnight", () => {
+    const night = shift("night", "22:00", "06:00", "2026-11-07");
+    night.assignments = [{ employeeId: "late", start: localToISO("2026-11-07", "01:00"), end: night.end }];
+    const [summary] = summarizeTimelineShifts([night]);
+    expect(summary.date).toBe("2026-11-06");
+    expect(Date.parse(summary.shift.start)).toBe(Date.parse(night.assignments[0].start));
   });
 });

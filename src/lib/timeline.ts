@@ -1,5 +1,5 @@
 import { localDate, localTime } from "./time";
-import type { Shift } from "./types";
+import { GROUP_LABELS, type Shift } from "./types";
 
 export interface TimelineShift {
   shift: Shift;
@@ -7,6 +7,69 @@ export interface TimelineShift {
   end: number;
   column: number;
   columns: number;
+}
+
+export interface TimelineSummary {
+  date: string;
+  shift: Shift;
+  sources: Shift[];
+}
+
+/** Presentation-only unions; original shifts remain the source for editing. */
+export function summarizeTimelineShifts(shifts: Shift[]): TimelineSummary[] {
+  type Span = { start: number; end: number; sources: Shift[] };
+  const employees = new Map<string, { date: string; group: Shift["group"]; employeeId: string; spans: Span[] }>();
+  const summaries = new Map<string, TimelineSummary>();
+  const addSources = (target: Shift[], sources: Shift[]) => {
+    for (const source of sources) if (!target.some((item) => item.id === source.id)) target.push(source);
+    target.sort((a, b) => a.id.localeCompare(b.id));
+  };
+  for (const source of shifts) {
+    const date = localDate(source.start);
+    if (source.assignments.length === 0) {
+      const key = JSON.stringify(["empty", date, source.group, Date.parse(source.start), Date.parse(source.end)]);
+      let summary = summaries.get(key);
+      if (!summary) {
+        summary = { date, shift: { id: `timeline:${key}`, title: GROUP_LABELS[source.group], group: source.group,
+          start: source.start, end: source.end, required: 0, assignments: [] }, sources: [] };
+        summaries.set(key, summary);
+      }
+      addSources(summary.sources, [source]);
+    }
+    for (const assignment of source.assignments) {
+      const key = JSON.stringify([date, source.group, assignment.employeeId]);
+      let employee = employees.get(key);
+      if (!employee) {
+        employee = { date, group: source.group, employeeId: assignment.employeeId, spans: [] };
+        employees.set(key, employee);
+      }
+      employee.spans.push({ start: Date.parse(assignment.start), end: Date.parse(assignment.end), sources: [source] });
+    }
+  }
+  for (const { date, group, employeeId, spans } of employees.values()) {
+    const merged: Span[] = [];
+    for (const span of spans.sort((a, b) => a.start - b.start || a.end - b.end)) {
+      const previous = merged.at(-1);
+      if (previous && span.start <= previous.end) {
+        previous.end = Math.max(previous.end, span.end);
+        addSources(previous.sources, span.sources);
+      } else merged.push({ ...span, sources: [...span.sources] });
+    }
+    for (const span of merged) {
+      const key = JSON.stringify(["assigned", date, group, span.start, span.end]);
+      let summary = summaries.get(key);
+      if (!summary) {
+        summary = { date, shift: { id: `timeline:${key}`, title: GROUP_LABELS[group], group,
+          start: new Date(span.start).toISOString(), end: new Date(span.end).toISOString(), required: 0, assignments: [] }, sources: [] };
+        summaries.set(key, summary);
+      }
+      summary.shift.assignments.push({ employeeId, start: summary.shift.start, end: summary.shift.end });
+      summary.shift.assignments.sort((a, b) => a.employeeId.localeCompare(b.employeeId));
+      summary.shift.required = summary.shift.assignments.length;
+      addSources(summary.sources, span.sources);
+    }
+  }
+  return [...summaries.values()].sort((a, b) => Date.parse(a.shift.start) - Date.parse(b.shift.start) || a.shift.id.localeCompare(b.shift.id));
 }
 
 function clockMinutes(iso: string): number {
