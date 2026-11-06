@@ -109,3 +109,17 @@
 .timeline-fit .timeline-shared-row .shift-title { font-size:13px; line-height:17px; }
 .timeline-fit .timeline-shared-row .shift-group { font-size:9px; line-height:11px; }
 @media print { .timeline-view-actions { display:none; } }
+/* Desktop day focus is a compact agenda, with no empty hours between rows. */
+.timeline-day-agenda .timeline-grid { grid-template-columns:minmax(0,1fr); }
+.timeline-day-agenda .timeline-axis { display:none; }
+.timeline-day-agenda .timeline-heading { height:48px; flex-direction:row; justify-content:space-between; padding:0 16px; }
+.timeline-day-agenda .timeline-days button { flex-direction:row; justify-content:center; gap:6px; padding:7px 3px; }
+.timeline-day-agenda .timeline-days strong { font-size:15px; }
+.timeline-agenda { padding:8px 12px; display:flex; flex-direction:column; gap:5px; }
+.timeline-agenda .timeline-shared-row { flex:none; container-type:normal; }
+.timeline-agenda .shift-card { display:grid; grid-template-columns:130px minmax(0,1fr) 100px; align-items:center; gap:12px; height:auto; min-height:48px; padding:10px 14px; border:1px solid #dce7df; border-inline-start-width:3px; border-radius:8px; }
+.timeline-agenda .shift-card-top { justify-content:flex-start; gap:7px; }
+.timeline-agenda .shift-title { display:block; white-space:normal; font-size:14px; line-height:20px; overflow:visible; }
+.timeline-agenda .shift-time { font-size:13px; }
+.timeline-agenda .shift-group { font-size:12px; }
+.timeline-agenda-empty { margin:0; padding:18px; text-align:center; color:#6d7e74; font-size:13px; }

@@ -25,6 +25,7 @@ export function ScheduleTimeline({ dates, shifts, admin, group, renderCard, onAd
     return () => window.removeEventListener("resize", measure);
   }, []);
   const compact = !dayView && viewport.width > 1100;
+  const desktopDay = dayView && viewport.width > 1100;
   const activeDate = dates.includes(chosenDate) ? chosenDate : dates[0];
   const summaries = summarizeTimelineShifts(shifts);
   const envelopes = summaries.map(item => ({ ...item.shift,
@@ -46,7 +47,7 @@ export function ScheduleTimeline({ dates, shifts, admin, group, renderCard, onAd
     return minute === range.start || minute === range.end || (minute % 120 === 0 && position(minute) - position(range.start) >= 18 && position(range.end) - position(minute) >= 18);
   });
   const teams = (["MANAGERS", "PATROL"] as Group[]).filter(team => group === "ALL" || team === group);
-  return <section className={`schedule-timeline ${compact ? "timeline-fit" : ""} ${dayView ? "timeline-day-view" : ""}`} aria-label="לוח משמרות לפי שעות">
+  return <section className={`schedule-timeline ${compact ? "timeline-fit" : ""} ${desktopDay ? "timeline-day-agenda" : ""} ${dayView ? "timeline-day-view" : ""}`} aria-label="לוח משמרות לפי שעות">
     <div className="timeline-toolbar">
       <span>מי עובד ומתי · לחצו על שם לפירוט השיבוצים</span>
       <div className="timeline-view-actions">
@@ -88,17 +89,20 @@ export function ScheduleTimeline({ dates, shifts, admin, group, renderCard, onAd
               </button>
               {admin && <div className="timeline-adds">{teams.map(team => <button key={team} onClick={() => onAdd(date, team)} aria-label={`הוספת משמרת ${GROUP_LABELS[team]} ${date}`}><Plus size={12} />{GROUP_LABELS[team]}</button>)}</div>}
             </div>
-            <div className="timeline-track" style={{ height }}>
+            {desktopDay ? <div className="timeline-agenda" role="list" aria-label={`שיבוצים ליום ${date}`}>
+              {daily.length === 0 && <p className="timeline-agenda-empty">אין שיבוצים ביום הזה בתצוגה הנוכחית</p>}
+              {daily.map(item => <div className="timeline-shared-row" role="listitem" key={item.shift.id}>{renderCard(item.shift, item.sources)}</div>)}
+            </div> : <div className="timeline-track" style={{ height }}>
               {hours.map(minute => <div className="timeline-hour-line" key={minute} style={{ top: position(minute) }} />)}
               {dailyShifts.length === 0 && <span className="timeline-empty">אין משמרות בתצוגה זו</span>}
               {sections.map(band => <section key={band.start} className="timeline-shared-card" aria-label={`שיבוצים ${hourLabel(band.start)}–${hourLabel(band.end)}`} style={{ top: position(band.start), height: position(band.end) - position(band.start) }}>
                 <div className="timeline-shared-rows">{band.active.map(item => <div className="timeline-shared-row" key={item.shift.id}>{renderCard(item.shift, item.sources)}</div>)}</div>
               </section>)}
-            </div>
+            </div>}
           </div>;
         })}
       </div>
     </div>
-    <p className="timeline-note">משמרות לילה נשארות ביום שבו התחילו. ‎+1 בסרגל מציין את היום הבא. כל עובד מופיע פעם אחת לכל רצף עבודה בצוות. השעות ליד השם הן שעות העבודה שלו; לחצו לפירוט השיבוצים.</p>
+    <p className="timeline-note">{desktopDay ? "השעות ליד השם הן שעות העבודה שלו. ‎+1 מציין סיום ביום הבא. לחצו על שורה לפירוט השיבוצים." : "משמרות לילה נשארות ביום שבו התחילו. ‎+1 בסרגל מציין את היום הבא. כל עובד מופיע פעם אחת לכל רצף עבודה בצוות. השעות ליד השם הן שעות העבודה שלו; לחצו לפירוט השיבוצים."}</p>
   </section>;
 }
