@@ -49,6 +49,7 @@ import {
 } from "@/lib/time";
 import { api } from "@/lib/utils";
 import { Modal } from "./ui/dialog";
+import { ScheduleTimeline } from "./schedule-timeline";
 import { TemplateBuilder } from "./template-builder";
 import { ShiftEditor } from "./shift-editor";
 import { EmployeesPanel, SettingsPanel } from "./team-panels";
@@ -887,88 +888,11 @@ export function ScheduleApp() {
                     <p>מסדרים את השבוע…</p>
                   </div>
                 ) : (
-                  <div className="week-grid">
-                    {dates.map((date, index) => (
-                      <div
-                        className={`day-column ${date === today() ? "is-today" : ""} ${index === 6 ? "weekend" : ""}`}
-                        key={date}
-                      >
-                        <div className="day-heading">
-                          <span>{fmtDate(date, { weekday: "long" })}</span>
-                          <strong>{fmtDate(date, { day: "numeric" })}</strong>
-                          {date === today() && <small>היום</small>}
-                        </div>
-                        <div className="day-content">
-                          {!admin && !shifts.some((s) => localDate(s.start) === date) && (
-                            <div className="empty-day"><span>{data?.publishedAt ? mine ? "אין לך משמרות" : "אין משמרות" : "ממתין לפרסום"}</span></div>
-                          )}
-                          {(["MANAGERS", "PATROL"] as Group[])
-                            .filter((g) => admin
-                              ? group === "ALL" || g === group
-                              : shifts.some((s) => s.group === g && localDate(s.start) === date))
-                            .map((team) => (
-                              <section className="day-group" key={team}>
-                                <div className="day-group-label">
-                                  <span
-                                    className={`legend-dot ${team === "PATROL" ? "purple" : ""}`}
-                                  />
-                                  {GROUP_LABELS[team]}
-                                  {admin && (
-                                    <button
-                                      className="day-add"
-                                      aria-label={`הוספת משמרת ${GROUP_LABELS[team]} ${date}`}
-                                      onClick={() => newShift(date, team)}
-                                    >
-                                      <Plus size={13} />
-                                    </button>
-                                  )}
-                                </div>
-                                {shifts
-                                  .filter(
-                                    (s) =>
-                                      localDate(s.start) === date &&
-                                      s.group === team,
-                                  )
-                                  .map((shift) => (
-                                    <ShiftCard
-                                      key={shift.id}
-                                      shift={shift}
-                                      data={data!}
-                                      admin={admin}
-                                      mine={shift.assignments.some(
-                                        (a) =>
-                                          a.employeeId === user?.employeeId,
-                                      )}
-                                      onClick={() => {
-                                        if (!busy && !loading)
-                                          setEditor({ shift, isNew: false });
-                                      }}
-                                    />
-                                  ))}
-                                {shifts.filter(
-                                  (s) =>
-                                    localDate(s.start) === date &&
-                                    s.group === team,
-                                ).length === 0 && (
-                                  <div className="empty-day">
-                                    {admin ? (
-                                      <button
-                                        onClick={() => newShift(date, team)}
-                                      >
-                                        <Plus size={14} />
-                                        הוספה
-                                      </button>
-                                    ) : (
-                                      <span>אין משמרות</span>
-                                    )}
-                                  </div>
-                                )}
-                              </section>
-                            ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <ScheduleTimeline dates={dates} shifts={shifts} admin={admin} group={group} onAdd={newShift}
+                    renderCard={(shift) => <ShiftCard key={shift.id} shift={shift} data={data!} admin={admin}
+                      mine={shift.assignments.some((a) => a.employeeId === user?.employeeId)}
+                      onClick={() => { if (!busy && !loading) setEditor({ shift, isNew: false }); }} />}
+                  />
                 )}
                 <footer className="calendar-footer">
                   {admin && <div>
@@ -1363,10 +1287,12 @@ function ShiftCard({
     <button
       className={`shift-card ${shift.group === "PATROL" ? "patrol" : ""} ${short ? "short-staffed" : ""} ${severity ? `has-${severity}` : ""} ${mine && !admin ? "my-shift" : ""}`}
       onClick={onClick}
+      title={`${shift.title} · ${localTime(shift.start)}–${localTime(shift.end)} · ${shift.assignments.map(a => data.employees.find(e => e.id === a.employeeId)?.name || "עובד").join(", ")}${issues.length ? ` · ${issues.map(i => i.message).join(" · ")}` : ""}`}
+      aria-label={`${shift.title}, ${localTime(shift.start)}–${localTime(shift.end)}${localDate(shift.start) !== localDate(shift.end) ? ", מסתיימת ביום הבא" : ""}${issues.length ? ", דורש טיפול" : short ? ", נדרש שיבוץ" : ""}, לחצו לפרטים`}
     >
       <div className="shift-card-top">
         <span className="shift-time" dir="ltr">
-          {localTime(shift.start)}–{localTime(shift.end)}
+          <span>{localTime(shift.start)}</span><span className="shift-time-dash">–</span><span>{localTime(shift.end)}</span>
         </span>
         {localDate(shift.start) !== localDate(shift.end) && (
           <small className="overnight">
