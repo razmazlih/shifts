@@ -723,6 +723,7 @@ export function ScheduleApp() {
                     />
                   </div>
                   {admin && (
+                    <div className="week-primary-actions">
                     <button
                       className="button secondary add-shift"
                       disabled={busy || loading}
@@ -731,6 +732,8 @@ export function ScheduleApp() {
                       <Plus size={18} />
                       משמרת חדשה
                     </button>
+                    <button className="button primary workflow-smart" aria-label="שיבוץ חכם" disabled={busy || loading || (!selectedTemplate && !data?.shifts.length)} onClick={runSmartSchedule}>{busy ? <LoaderCircle size={18} className="spin" /> : <Sparkles size={18} />}{busy ? "מכין את השבוע…" : "שיבוץ חכם"}</button>
+                    </div>
                   )}
                   {!admin && (
                     <div className="segmented" aria-label="תצוגת הסידור">
@@ -801,7 +804,6 @@ export function ScheduleApp() {
                       </select>
                     </label>)}
                     <button className="button secondary" disabled={busy || loading} onClick={() => { setTemplateTab("new"); void openPanel("templates"); }}><Plus size={17} />יצירת תבנית</button>
-                    <button className="button primary workflow-smart" aria-label="שיבוץ חכם" disabled={busy || loading || (!selectedTemplate && !data?.shifts.length)} onClick={runSmartSchedule}>{busy ? <LoaderCircle size={18} className="spin" /> : <Sparkles size={18} />}{busy ? "מכין את השבוע…" : "שיבוץ חכם"}</button>
                   </div>
                   {templatesError && <p className="notice error" role="alert">לא ניתן לטעון תבניות: {templatesError}<button className="text-button" onClick={() => void openPanel("templates")}>ניסיון נוסף</button></p>}
                   <details className="workflow-help"><summary>איך זה עובד?</summary><p className="workflow-hint">{selectedTemplate ? "התבנית תוחל והעובדים ישובצו בפעולה אחת." : data?.shifts.length ? "השיבוץ פועל על כל השבוע, גם כשמוצג סינון." : "שבוע ריק? צרו תבנית עם שעות וימים, ואז לחצו על שיבוץ חכם."} השיבוץ מכבד זמינות ומכסות; חוסרים יוצגו לטיפול. לאחר השיבוץ בודקים את המשמרות ומפרסמים לצוות.</p></details>

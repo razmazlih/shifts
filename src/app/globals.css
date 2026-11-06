@@ -4004,3 +4004,10 @@ label small {
   .schedule-actions .workflow-controls .button { min-height: 44px; }
   .schedule-actions > summary { min-height: 44px; }
 }
+
+.week-primary-actions { display: flex; align-items: center; gap: 8px; margin-inline-start: auto; }
+.calendar-toolbar .week-primary-actions .button { min-height: 42px; margin: 0; padding: 9px 14px; border-radius: 10px; white-space: nowrap; }
+@media (max-width: 600px) {
+  .week-primary-actions { width: 100%; }
+  .calendar-toolbar .week-primary-actions .button { flex: 1; width: auto; min-width: 0; min-height: 44px; padding: 9px 8px; font-size: 13px; }
+}
