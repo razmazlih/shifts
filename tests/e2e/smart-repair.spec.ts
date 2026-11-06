@@ -36,6 +36,8 @@ test('smart scheduling repairs an overlap in the draft, reports changes and supp
   await expect(page.getByText(first.title, { exact: true })).toBeVisible();
   await expect(page.locator('.calendar-loading')).toBeHidden();
   await page.getByRole('button', { name: 'שיבוץ חכם', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'שיבוץ חכם', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'הפעלת שיבוץ חכם', exact: true }).click();
   const confirmation = page.getByRole('dialog', { name: 'שיבוץ חכם ותיקון בעיות', exact: true });
   await expect(confirmation).toContainText('שיבוצים בעייתיים עשויים להשתנות');
   await confirmation.getByRole('button', { name: 'תיקון ושיבוץ', exact: true }).click();
@@ -51,6 +53,7 @@ test('smart scheduling repairs an overlap in the draft, reports changes and supp
   await expect(page.locator('.auto-result')).toContainText(second.title);
   await mkdir('output/playwright', { recursive: true });
   await page.screenshot({ path: 'output/playwright/smart-repair.png', fullPage: true });
+  await page.locator('.schedule-actions > summary').click();
   await page.getByRole('button', { name: 'ביטול השינוי האחרון', exact: true }).click();
   const undo = page.getByRole('dialog');
   await undo.getByRole('button', { name: 'ביטול שינוי', exact: true }).click();

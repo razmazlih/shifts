@@ -50,6 +50,7 @@ export function ShiftEditor({
   const [advanced, setAdvanced] = useState(false);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const [segmentStart, setSegmentStart] = useState(toInput(shift.start));
   const [segmentEnd, setSegmentEnd] = useState(toInput(shift.end));
   let candidateShift = draft;
@@ -375,39 +376,23 @@ export function ShiftEditor({
             {error}
           </div>
         )}
-        {deleting && (
-          <div className="notice warning">
-            למחוק את המשמרת ואת כל השיבוצים שלה?
-            <button
-              className="text-button danger"
-              disabled={busy}
-              onClick={async () => {
-                try {
-                  await onDelete(shift.id);
-                } catch (e) {
-                  setError((e as Error).message);
-                }
-              }}
-            >
-              כן, מחיקת המשמרת
-            </button>
-            <button className="text-button" onClick={() => setDeleting(false)}>
-              ביטול
-            </button>
-          </div>
-        )}
+
       </div>
       <div className="dialog-footer">
         <div className="button-row">
           {!isNew && (
             <>
               <button
-                className="icon-button danger"
+                className="button secondary danger"
                 aria-label="מחיקת משמרת"
                 disabled={busy}
-                onClick={() => setDeleting(true)}
+                onClick={() => {
+                  setDeleteError("");
+                  setDeleting(true);
+                }}
               >
                 <Trash2 size={18} />
+                מחיקה
               </button>
               <button
                 className="button secondary"
@@ -438,6 +423,53 @@ export function ShiftEditor({
           </button>
         </div>
       </div>
+      {deleting && (
+        <Modal
+          open
+          onClose={() => !busy && setDeleting(false)}
+          title="למחוק את המשמרת?"
+          description={`המשמרת ״${shift.title}״ וכל שיבוצי העובדים שלה יימחקו מהטיוטה. אפשר לשחזר באמצעות ״ביטול שינוי אחרון״ בלוח.`}
+        >
+          <div className="editor-body">
+            <div className="notice warning">
+              <AlertTriangle size={20} aria-hidden="true" />
+              <span>
+                <strong>{shift.title}</strong>
+                <br />
+                {localDate(shift.start)} · <span dir="ltr">{localTime(shift.start)}–{localTime(shift.end)}</span>
+                <br />
+                יוסרו גם {shift.assignments.length} שיבוצי עובדים.
+              </span>
+            </div>
+            {deleteError && <div className="notice error" role="alert">{deleteError}</div>}
+          </div>
+          <div className="dialog-footer">
+            <button
+              className="button secondary"
+              autoFocus
+              disabled={busy}
+              onClick={() => setDeleting(false)}
+            >
+              חזרה לעריכה
+            </button>
+            <button
+              className="button delete-confirm"
+              disabled={busy}
+              onClick={async () => {
+                setDeleteError("");
+                try {
+                  await onDelete(shift.id);
+                } catch (e) {
+                  setDeleteError((e as Error).message);
+                }
+              }}
+            >
+              <Trash2 size={17} aria-hidden="true" />
+              {busy ? "מוחק…" : "כן, מחיקת המשמרת"}
+            </button>
+          </div>
+        </Modal>
+      )}
     </Modal>
   );
 }

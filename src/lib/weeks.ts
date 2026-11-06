@@ -251,6 +251,7 @@ export async function autoWeek(
   user: SessionUser,
   week: string,
   revision: number,
+  prepare?: (shifts: Shift[], tx: Tx) => Promise<Shift[]>,
 ) {
   let reasons: Issue[] = [];
   let autoSummary: AutoScheduleSummary | undefined;
@@ -258,8 +259,9 @@ export async function autoWeek(
     user,
     week,
     revision,
-    "AUTO",
-    async (shifts, tx) => {
+    prepare ? "TEMPLATE_AUTO" : "AUTO",
+    async (current, tx) => {
+      const shifts = prepare ? await prepare(current, tx) : current;
       if (!shifts.length)
         throw new ApiError(400, "יש ליצור משמרות לפני השיבוץ האוטומטי");
       const employees = (await tx.employee.findMany()).map(employeeData);

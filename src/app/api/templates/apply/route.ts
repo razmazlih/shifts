@@ -1,3 +1,5 @@
+import { z } from "zod";
+import { applyTemplateShifts } from "@/lib/templates";
 import { requireUser } from "@/lib/auth";
 import {
   ApiError,
@@ -7,31 +9,25 @@ import {
   revisionSchema,
   idSchema,
 } from "@/lib/validation";
-import { mutateWeek, moveShifts } from "@/lib/weeks";
+import { autoWeek, mutateWeek, type Tx } from "@/lib/weeks";
 import type { Shift } from "@/lib/types";
 export const POST = route(async (request) => {
   const user = await requireUser(true);
   const data = await body(
     request,
-    revisionSchema.extend({ templateId: idSchema }),
+    revisionSchema.extend({ templateId: idSchema, targetDay: z.number().int().min(0).max(6).optional(), allDays: z.boolean().optional(), autoSchedule: z.boolean().optional() }),
   );
-  return json(
-    await mutateWeek(
-      user,
-      data.weekStart,
-      data.revision,
-      "TEMPLATE",
-      async (_shifts, tx) => {
-        const template = await tx.template.findUnique({
-          where: { id: data.templateId },
-        });
-        if (!template) throw new ApiError(404, "התבנית לא נמצאה");
-        return moveShifts(
-          template.shifts as unknown as Shift[],
-          template.sourceWeek,
-          data.weekStart,
-        );
-      },
-    ),
-  );
+  const apply = async (shifts: Shift[], tx: Tx) => {
+    const template = await tx.template.findUnique({
+      where: { id: data.templateId },
+    });
+    if (!template) throw new ApiError(404, "התבנית לא נמצאה");
+    return applyTemplateShifts(shifts, {
+      shifts: template.shifts as unknown as Shift[],
+      sourceWeek: template.sourceWeek,
+    }, data.weekStart, data.targetDay, data.allDays);
+  };
+  return json(data.autoSchedule
+    ? await autoWeek(user, data.weekStart, data.revision, apply)
+    : await mutateWeek(user, data.weekStart, data.revision, "TEMPLATE", apply));
 });

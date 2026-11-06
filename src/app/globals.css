@@ -3783,3 +3783,246 @@ label small {
   .report-shift-meta b { margin-inline-start: 0; }
   .report-progress { font-size: 12px; gap: 8px 16px; }
 }
+
+.template-help { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 16px; }
+.template-save { flex-wrap: wrap; }
+.template-save label { min-width: 140px; }
+.template-row select { width: 100%; margin-top: 5px; }
+.template-row label { display: block; margin-top: 8px; font-size: 12px; }
+@media (max-width: 600px) {
+  .template-row { flex-wrap: wrap; }
+  .template-row > div { flex-basis: calc(100% - 40px); }
+  .template-save label { flex-basis: 100%; }
+}
+
+.button.delete-confirm {
+  background: #b42332;
+  color: #fff;
+  border: 1px solid #b42332;
+}
+.button.delete-confirm:hover:not(:disabled) {
+  background: #941c28;
+}
+
+/* Weekly calendar header: a calm title row and a distinct viewing-filter row. */
+.schedule-panel > .calendar-toolbar {
+  padding: 24px;
+  gap: 20px;
+  flex-wrap: wrap;
+  background: linear-gradient(110deg, #fff 40%, #f4f9f8);
+}
+.calendar-toolbar .week-heading { gap: 14px; min-width: 0; }
+.calendar-toolbar .calendar-icon {
+  width: 48px; height: 48px; border-radius: 15px;
+  background: #e5f0ed; border-color: #d8e8e2; color: #28645b;
+}
+.calendar-toolbar .week-heading h2 { font-size: 22px; font-weight: 700; letter-spacing: -.5px; line-height: 1.4; }
+.calendar-toolbar .week-heading > div > span { font-size: 12px; color: #71847f; margin-top: 4px; }
+.calendar-toolbar .week-navigation {
+  margin: 0; margin-inline-start: 10px; padding: 4px;
+  border: 1px solid #dce6e3; border-radius: 13px; background: #fff;
+  box-shadow: 0 2px 4px #1d4b3f04;
+}
+.calendar-toolbar .week-navigation .icon-button { width: 38px; height: 38px; border-radius: 9px; color: #58746e; }
+.calendar-toolbar .today-button { min-height: 38px; padding: 7px 14px; border: 0; border-radius: 8px; color: #2c6056; font-size: 12px; font-weight: 600; background: #f0f6f3; }
+.calendar-toolbar .week-picker { display: block; width: 148px; min-height: 48px; margin: 0; padding: 10px 12px; border: 1px solid #dce6e3; border-radius: 12px; background: #fff; color: #526c65; font-size: 13px; }
+.calendar-toolbar .add-shift { min-height: 48px; padding: 12px 20px; border-radius: 13px; font-size: 14px; box-shadow: 0 4px 10px #173f4014; }
+.schedule-panel > .calendar-subbar { padding: 14px 24px; gap: 16px; flex-wrap: wrap; background: #fff; border-top-color: #e7eeeb; }
+.calendar-subbar .filters { width: auto; gap: 4px; padding: 4px; border: 1px solid #e5ece9; border-radius: 13px; background: #f5f8f6; }
+.calendar-subbar .filter { min-height: 38px; padding: 8px 16px; border-radius: 9px; font-size: 12px; font-weight: 500; color: #64776f; transition: background .15s, box-shadow .15s, color .15s; }
+.calendar-subbar .filter.selected { background: #fff; color: #205b4d; box-shadow: 0 1px 5px #214a3514; font-weight: 700; }
+.calendar-subbar .filter:hover:not(.selected) { background: #e8f0eb; color: #285d4e; }
+.calendar-subbar .legend-dot { width: 7px; height: 7px; }
+.calendar-subbar .schedule-employee-filter { width: auto; gap: 12px; font-size: 12px; color: #6a7b73; }
+.calendar-subbar .employee-filter { width: 172px; min-height: 44px; padding: 8px 12px; border: 1px solid #dce6e0; border-radius: 10px; background-color: #fff; color: #334f43; font-size: 13px; }
+.calendar-toolbar :is(button, input):focus-visible,
+.calendar-subbar :is(button, select):focus-visible { outline: 3px solid #398573; outline-offset: 3px; }
+@media (max-width: 900px) {
+  .schedule-panel > .calendar-toolbar { padding: 20px; }
+  .calendar-toolbar .week-heading { flex: 1 1 100%; }
+  .calendar-toolbar .add-shift { margin-inline-start: auto; }
+}
+@media (max-width: 600px) {
+  .schedule-panel > .calendar-toolbar { padding: 16px; gap: 14px; }
+  .role-admin .calendar-toolbar .week-heading,
+  .calendar-toolbar .week-heading { display: grid; grid-template-columns: 148px minmax(0, 1fr); width: 100%; gap: 14px 10px; }
+  .calendar-toolbar .week-heading > .calendar-icon { display: none; }
+  .calendar-toolbar .week-heading > div:not(.week-navigation) { grid-column: 1 / -1; }
+  .role-admin .calendar-toolbar .week-heading h2,
+  .calendar-toolbar .week-heading h2 { font-size: 21px; }
+  .calendar-toolbar .week-navigation { margin: 0; }
+  .calendar-toolbar .week-navigation .icon-button { width: 42px; height: 42px; }
+  .calendar-toolbar .today-button { min-height: 42px; }
+  .role-admin .week-heading > .week-picker,
+  .calendar-toolbar .week-picker { grid-column: 2; width: 100%; min-width: 0; min-height: 52px; }
+  .role-admin .calendar-toolbar .add-shift,
+  .calendar-toolbar .add-shift { position: static; width: 100%; margin: 0; }
+  .schedule-panel > .calendar-subbar { padding: 12px 16px; gap: 14px; }
+  .calendar-subbar .filters { width: 100%; }
+  .calendar-subbar .filter { flex: 1; justify-content: center; padding: 8px; min-height: 44px; }
+  .calendar-subbar .schedule-employee-filter { width: 100%; justify-content: space-between; }
+  .calendar-subbar .employee-filter { width: 172px; max-width: 60%; }
+}
+@media print {
+  .schedule-panel > .calendar-toolbar { background: white; }
+  .calendar-toolbar .week-navigation, .calendar-toolbar .week-picker { display: none; }
+}
+
+/* Main manager path: template → smart scheduling → review. */
+.week-workflow { padding: 24px; background: #edf5f1; border-top: 1px solid #d8e7df; }
+.workflow-heading { display: flex; align-items: center; gap: 12px; }
+.workflow-number { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex-shrink: 0; border: 1px solid #bfd3c7; border-radius: 50%; background: #fff; color: #2d6654; font-size: 12px; font-weight: 700; }
+.workflow-heading h3 { font-size: 18px; font-weight: 700; color: #234e41; }
+.workflow-heading p, .workflow-hint { color: #567064; font-size: 12px; line-height: 1.8; }
+.workflow-controls { display: flex; gap: 10px; align-items: flex-end; margin-top: 18px; }
+.workflow-controls label { flex: 1; min-width: 0; font-size: 12px; color: #425e51; }
+.workflow-controls select { display: block; width: 100%; margin-top: 6px; min-height: 48px; background-color: #fff; }
+.workflow-controls .button { min-height: 48px; }
+.workflow-smart { min-width: 165px; }
+.workflow-hint { margin-top: 10px; }
+.workflow-next { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #d5e3db; color: #536c60; font-size: 12px; }
+.workflow-next .workflow-number:not(:first-child) { margin-inline-start: 20px; }
+.attention-filter { min-height: 44px; padding: 8px 14px; border: 1px solid #e7d6ae; border-radius: 10px; background: #fffbf2; color: #806026; font-size: 12px; }
+.attention-filter.selected { background: #806026; color: white; }
+.schedule-actions > summary { cursor: pointer; color: #5f716b; font-size: 12px; padding: 4px; }
+.schedule-actions[open] > summary { margin-bottom: 16px; }
+.template-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+.template-tabs .button { flex: 1; }
+.saved-templates-title { font-size: 15px; font-weight: 600; margin: 24px 0 12px; border-top: 1px solid var(--line); padding-top: 20px; }
+.auto-result .button { margin: 10px 0 0 8px; }
+@media (max-width: 700px) {
+  .week-workflow { padding: 18px 16px; }
+  .workflow-controls { flex-wrap: wrap; }
+  .workflow-controls label { flex-basis: 100%; }
+  .workflow-controls .button { flex: 1; padding: 12px; }
+  .workflow-smart { min-width: 0; }
+  .workflow-next { display: grid; grid-template-columns: 28px 1fr; }
+  .workflow-next .workflow-number:not(:first-child) { margin: 4px 0 0; }
+  .template-tabs { flex-direction: column; }
+}
+
+/* Compact schedule overview keeps the calendar close to the primary actions. */
+.schedule-page-heading { margin-bottom: 8px; gap: 10px; }
+.schedule-page-heading .eyebrow,
+.schedule-page-heading > div > p { display: none; }
+.schedule-page-heading h1 { font-size: 24px; }
+.schedule-stats { gap: 0; margin-bottom: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; overflow: hidden; }
+.schedule-stats .stat-card + .stat-card { border-inline-start: 1px solid var(--line); }
+.schedule-stats .stat-card {
+  min-height: 54px; padding: 6px 12px; gap: 8px; border: 0; border-radius: 0; box-shadow: none;
+  display: grid; grid-template-columns: 32px minmax(0, 1fr);
+  align-content: center; align-items: center; row-gap: 2px;
+}
+.schedule-stats .stat-icon { width: 32px; height: 32px; grid-row: 1 / 3; }
+.schedule-stats .stat-icon svg { width: 18px; height: 18px; }
+.schedule-stats .stat-card > div { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 10px; }
+.schedule-stats .stat-card > div > span { margin: 0; font-size: 11px; }
+.schedule-stats .stat-card strong { font-size: 21px; gap: 4px; }
+.schedule-stats .stat-card strong small { display: none; }
+.schedule-stats .stat-caption { position: static; grid-column: 2; font-size: 10px; color: #768395; margin: 0; }
+.schedule-panel > .calendar-toolbar { padding: 8px 12px; gap: 10px; }
+.calendar-toolbar .week-heading { gap: 10px; }
+.calendar-toolbar .calendar-icon { width: 38px; height: 38px; border-radius: 11px; }
+.calendar-toolbar .week-heading h2 { font-size: 20px; }
+.calendar-toolbar .week-heading > div > span { margin-top: 0; font-size: 11px; }
+.calendar-toolbar .week-picker { min-height: 42px; padding: 7px 10px; }
+.calendar-toolbar .add-shift { min-height: 42px; padding: 9px 14px; border-radius: 10px; }
+.week-workflow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 8px 12px; }
+.week-workflow .workflow-controls { flex: 1 1 560px; align-items: center; }
+.workflow-controls label { display: flex; align-items: center; gap: 8px; }
+.workflow-controls label > span { white-space: nowrap; }
+.workflow-help { flex: 1 1 100%; font-size: 11px; color: #567064; }
+.workflow-help > summary { cursor: pointer; width: fit-content; padding: 2px 0; }
+.workflow-help[open] > summary { margin-bottom: 4px; }
+.workflow-heading { display: block; }
+.workflow-heading h3 { font-size: 15px; }
+.workflow-heading p { font-size: 11px; line-height: 1.5; margin-top: 3px; }
+.workflow-controls { margin: 0; gap: 8px; flex-wrap: wrap; }
+.workflow-controls label { flex: 1 1 150px; font-size: 11px; }
+.workflow-controls select { min-height: 36px; margin-top: 0; min-width: 0; }
+.workflow-controls .button { min-height: 36px; padding: 6px 12px; }
+.workflow-smart { min-width: 120px; }
+.workflow-hint { grid-column: 1 / -1; margin: 0; font-size: 11px; line-height: 1.6; }
+.week-workflow > .notice { flex-basis: 100%; }
+.schedule-panel > .calendar-subbar { padding: 8px 16px; gap: 10px; }
+.calendar-subbar .filters { padding: 2px; }
+.calendar-subbar .filter { min-height: 36px; padding: 6px 12px; }
+.calendar-subbar .employee-filter, .calendar-subbar .attention-filter { min-height: 38px; padding: 6px 10px; }
+.schedule-panel > .schedule-actions { padding: 8px 16px; }
+.schedule-actions[open] > summary { margin-bottom: 10px; }
+@media (max-width: 1100px) {
+  .week-workflow { grid-template-columns: 1fr; gap: 8px; }
+  .workflow-heading { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+  .workflow-heading p { margin: 0; }
+}
+@media (max-width: 600px) {
+  .schedule-page-heading { margin-bottom: 10px; }
+  .schedule-page-heading .heading-actions { padding-top: 0; }
+  .schedule-stats { gap: 0; margin-bottom: 8px; }
+  .schedule-stats .stat-card { min-height: 52px; padding: 6px 10px; }
+  .schedule-panel > .calendar-toolbar { padding: 10px 12px; gap: 8px; }
+  .role-admin .calendar-toolbar .week-heading,
+  .calendar-toolbar .week-heading { gap: 8px; }
+  .role-admin .week-heading > .week-picker { min-height: 48px; }
+  .calendar-toolbar .add-shift { min-height: 44px; }
+  .week-workflow { padding: 8px 12px; }
+  .workflow-controls label { flex-basis: 100%; }
+  .workflow-controls .button, .workflow-controls select { min-height: 44px; }
+  .workflow-controls .button { flex: 1; }
+  .schedule-panel > .calendar-subbar { padding: 8px 12px; gap: 8px; }
+  .calendar-subbar .filter, .calendar-subbar .employee-filter,
+  .calendar-subbar .attention-filter { min-height: 44px; }
+  .schedule-panel > .schedule-actions { padding: 6px 12px; }
+  .schedule-actions > summary, .workflow-help > summary { min-height: 44px; align-content: center; }
+}
+
+/* A single quiet toolbar separates everyday viewing from occasional setup. */
+.schedule-panel > .calendar-toolbar { background: #fff; padding: 12px 16px; }
+.calendar-toolbar .calendar-icon,
+.calendar-toolbar .week-heading > div > span { display: none; }
+.calendar-toolbar .add-shift { box-shadow: none; background: #fff; color: var(--teal); }
+.schedule-panel > .calendar-subbar { justify-content: flex-start; background: #fff; gap: 12px; }
+.calendar-subbar .filters { background: transparent; border: 0; padding: 0; border-radius: 6px; }
+.calendar-subbar .filter { border-radius: 6px; }
+.calendar-subbar .filter.selected { background: #edf5f1; box-shadow: none; }
+.calendar-subbar .schedule-employee-filter { margin-inline-start: auto; gap: 8px; }
+.schedule-panel > .schedule-actions { background: #fff; padding: 4px 16px; }
+.schedule-actions > summary { padding: 8px 0; color: #334f43; font-weight: 600; }
+.schedule-tools-caption { margin-inline-start: 12px; font-size: 11px; font-weight: 400; color: #768395; }
+.schedule-actions .week-workflow { border: 1px solid #e2eae6; border-radius: 8px; padding: 12px; margin-bottom: 16px; background: #f7faf8; }
+.schedule-actions .workflow-controls label { display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
+.schedule-actions .workflow-controls { align-items: flex-end; }
+.schedule-actions .workflow-controls select { margin: 0; min-height: 40px; }
+.schedule-actions .workflow-controls .button { min-height: 40px; }
+.schedule-stats .stat-icon { width: 26px; height: 26px; background: transparent; }
+.schedule-stats .stat-card { grid-template-columns: 26px minmax(0, 1fr); }
+@media (max-width: 600px) {
+  .schedule-tools-caption { display: none; }
+  .calendar-subbar .schedule-employee-filter { margin: 0; }
+  .schedule-panel > .calendar-subbar { gap: 8px; }
+  .schedule-actions .workflow-controls select,
+  .schedule-actions .workflow-controls .button { min-height: 44px; }
+  .schedule-actions > summary { min-height: 44px; }
+}
+
+.week-primary-actions { display: flex; align-items: center; gap: 8px; margin-inline-start: auto; }
+.calendar-toolbar .week-primary-actions .button { min-height: 42px; margin: 0; padding: 9px 14px; border-radius: 10px; white-space: nowrap; }
+@media (max-width: 600px) {
+  .week-primary-actions { width: 100%; }
+  .calendar-toolbar .week-primary-actions .button { flex: 1; width: auto; min-width: 0; min-height: 44px; padding: 9px 8px; font-size: 13px; }
+}
+
+/* Smart scheduling is configured in a focused dialog, away from the calendar. */
+.smart-schedule-body { display: flex; flex-direction: column; gap: 18px; }
+.smart-schedule-week { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid #dce9e3; border-radius: 12px; background: #f1f7f4; color: #24584c; }
+.smart-schedule-week span { display: block; font-size: 12px; margin-bottom: 4px; }
+.smart-schedule-week strong { font-size: 16px; }
+.smart-schedule-options .workflow-controls { display: flex; flex-direction: column; align-items: stretch; gap: 16px; }
+.smart-schedule-options .workflow-controls label { display: flex; flex-direction: column; align-items: stretch; flex: none; gap: 7px; font-size: 13px; color: #344d43; }
+.smart-schedule-options .workflow-controls select { min-height: 46px; padding: 10px 12px; border: 1px solid #d6e2dc; border-radius: 9px; width: 100%; background: white; font-size: 14px; }
+.smart-schedule-options .workflow-controls .button { align-self: flex-start; min-height: 44px; }
+.smart-schedule-note { margin-top: 16px; }
+.smart-schedule-note .workflow-hint { font-size: 13px; line-height: 1.8; }
+.smart-schedule-draft { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.8; color: #627469; }
+.smart-schedule-draft svg { flex-shrink: 0; margin-top: 2px; }
+.smart-schedule-body .notice { margin: 0; }
