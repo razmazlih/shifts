@@ -3867,3 +3867,36 @@ label small {
   .schedule-panel > .calendar-toolbar { background: white; }
   .calendar-toolbar .week-navigation, .calendar-toolbar .week-picker { display: none; }
 }
+
+/* Main manager path: template → smart scheduling → review. */
+.week-workflow { padding: 24px; background: #edf5f1; border-top: 1px solid #d8e7df; }
+.workflow-heading { display: flex; align-items: center; gap: 12px; }
+.workflow-number { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex-shrink: 0; border: 1px solid #bfd3c7; border-radius: 50%; background: #fff; color: #2d6654; font-size: 12px; font-weight: 700; }
+.workflow-heading h3 { font-size: 18px; font-weight: 700; color: #234e41; }
+.workflow-heading p, .workflow-hint { color: #567064; font-size: 12px; line-height: 1.8; }
+.workflow-controls { display: flex; gap: 10px; align-items: flex-end; margin-top: 18px; }
+.workflow-controls label { flex: 1; min-width: 0; font-size: 12px; color: #425e51; }
+.workflow-controls select { display: block; width: 100%; margin-top: 6px; min-height: 48px; background-color: #fff; }
+.workflow-controls .button { min-height: 48px; }
+.workflow-smart { min-width: 165px; }
+.workflow-hint { margin-top: 10px; }
+.workflow-next { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #d5e3db; color: #536c60; font-size: 12px; }
+.workflow-next .workflow-number:not(:first-child) { margin-inline-start: 20px; }
+.attention-filter { min-height: 44px; padding: 8px 14px; border: 1px solid #e7d6ae; border-radius: 10px; background: #fffbf2; color: #806026; font-size: 12px; }
+.attention-filter.selected { background: #806026; color: white; }
+.schedule-actions > summary { cursor: pointer; color: #5f716b; font-size: 12px; padding: 4px; }
+.schedule-actions[open] > summary { margin-bottom: 16px; }
+.template-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+.template-tabs .button { flex: 1; }
+.saved-templates-title { font-size: 15px; font-weight: 600; margin: 24px 0 12px; border-top: 1px solid var(--line); padding-top: 20px; }
+.auto-result .button { margin: 10px 0 0 8px; }
+@media (max-width: 700px) {
+  .week-workflow { padding: 18px 16px; }
+  .workflow-controls { flex-wrap: wrap; }
+  .workflow-controls label { flex-basis: 100%; }
+  .workflow-controls .button { flex: 1; padding: 12px; }
+  .workflow-smart { min-width: 0; }
+  .workflow-next { display: grid; grid-template-columns: 28px 1fr; }
+  .workflow-next .workflow-number:not(:first-child) { margin: 4px 0 0; }
+  .template-tabs { flex-direction: column; }
+}

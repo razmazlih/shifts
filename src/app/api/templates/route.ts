@@ -2,7 +2,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { ApiError, body, json, route, weekSchema, idSchema } from "@/lib/validation";
-import { createTemplateShifts, templateScope } from "@/lib/templates";
+import { createTemplateEntries, createTemplateShifts, templateEntriesSchema, templateScope } from "@/lib/templates";
 import type { Shift } from "@/lib/types";
 export const GET = route(async () => {
   await requireUser(true);
@@ -24,16 +24,20 @@ export const POST = route(async (request) => {
         weekStart: weekSchema,
         sourceDay: z.number().int().min(0).max(6).optional(),
         repeatAllDays: z.boolean().optional(),
+        entries: templateEntriesSchema.optional(),
       })
-      .strict(),
+      .strict().refine((value) => !value.entries || (value.sourceDay === undefined && value.repeatAllDays === undefined),
+        "יש לבחור יצירת תבנית חדשה או שמירה מהלוח"),
   );
-  const week = await db.week.findUnique({
+  const week = data.entries ? null : await db.week.findUnique({
     where: { weekStart: data.weekStart },
   });
-  if (!week) throw new ApiError(404, "השבוע לא נמצא");
+  if (!data.entries && !week) throw new ApiError(404, "השבוע לא נמצא");
   if ((await db.template.count()) >= 100)
     throw new ApiError(409, "הגעתם למגבלת 100 תבניות");
-  const shifts = createTemplateShifts(week.shifts as unknown as Shift[], data.weekStart, data.sourceDay, data.repeatAllDays);
+  const shifts = data.entries
+    ? createTemplateEntries(data.entries, data.weekStart)
+    : createTemplateShifts(week!.shifts as unknown as Shift[], data.weekStart, data.sourceDay, data.repeatAllDays);
   const template = await db.template.create({
     data: {
       name: data.name,

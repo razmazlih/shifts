@@ -1,7 +1,46 @@
-import { addDays, localDate, weekDates } from "./time";
+import { randomUUID } from "node:crypto";
+import { z } from "zod";
+import { addDays, localDate, localToISO, weekDates } from "./time";
 import type { Shift } from "./types";
 import { ApiError, shiftsSchema } from "./validation";
 import { moveShifts } from "./weeks";
+
+const templateClock = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
+export const templateEntriesSchema = z.array(z.object({
+  title: z.string().trim().min(1).max(120),
+  group: z.enum(["MANAGERS", "PATROL"]),
+  startTime: templateClock,
+  endTime: templateClock,
+  required: z.number().int().min(1).max(50),
+  days: z.array(z.number().int().min(0).max(6)).min(1).max(7)
+    .refine((days) => new Set(days).size === days.length, "יש לבחור כל יום פעם אחת"),
+}).strict()).min(1).max(300).refine(
+  (entries) => entries.reduce((sum, entry) => sum + entry.days.length, 0) <= 300,
+  "התבנית תיצור יותר מ־300 משמרות בשבוע",
+);
+
+/** Build reusable staffing requirements without first creating a draft week. */
+export function createTemplateEntries(entries: unknown, sourceWeek: string): Shift[] {
+  const definitions = templateEntriesSchema.parse(entries);
+  try {
+    return checked(definitions.flatMap((entry) => entry.days.map((day) => {
+      const date = addDays(sourceWeek, day);
+      return {
+        id: randomUUID(),
+        title: entry.title,
+        group: entry.group,
+        start: localToISO(date, entry.startTime),
+        end: localToISO(entry.endTime <= entry.startTime ? addDays(date, 1) : date, entry.endTime),
+        required: entry.required,
+        assignments: [],
+      };
+    })));
+  } catch (error) {
+    if (error instanceof RangeError)
+      throw new ApiError(400, "שעות התבנית נופלות על מעבר שעון. יש לבחור שעות אחרות.");
+    throw error;
+  }
+}
 
 export function templateScope(shifts: Shift[]): "day" | "week" {
   return new Set(shifts.map((shift) => localDate(shift.start))).size === 1

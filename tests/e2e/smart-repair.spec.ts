@@ -51,6 +51,7 @@ test('smart scheduling repairs an overlap in the draft, reports changes and supp
   await expect(page.locator('.auto-result')).toContainText(second.title);
   await mkdir('output/playwright', { recursive: true });
   await page.screenshot({ path: 'output/playwright/smart-repair.png', fullPage: true });
+  await page.locator('.schedule-actions > summary').click();
   await page.getByRole('button', { name: 'ביטול השינוי האחרון', exact: true }).click();
   const undo = page.getByRole('dialog');
   await undo.getByRole('button', { name: 'ביטול שינוי', exact: true }).click();

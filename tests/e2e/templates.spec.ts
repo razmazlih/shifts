@@ -96,7 +96,9 @@ test("manager can save a daily template and delete it through confirmation", asy
   const loaded = page.waitForResponse((response) => response.url().includes(`/api/weeks?week=${week}`) && response.request().method() === "GET");
   await page.getByLabel("בחירת שבוע", { exact: true }).fill(week);
   await loaded;
+  await page.locator(".schedule-actions > summary").click();
   await page.getByRole("button", { name: "תבניות שבוע", exact: true }).click();
+  await page.getByRole("button", { name: "שמירת הלוח כתבנית", exact: true }).click();
   const modal = page.getByRole("dialog");
   await modal.getByLabel("סוג התבנית").selectOption("day");
   await modal.getByLabel("יום המקור").selectOption("0");

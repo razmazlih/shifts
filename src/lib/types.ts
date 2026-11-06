@@ -80,6 +80,14 @@ export interface Template {
   shifts: Shift[];
   sourceWeek: string;
 }
+export interface TemplateEntry {
+  title: string;
+  group: Group;
+  startTime: string;
+  endTime: string;
+  required: number;
+  days: number[];
+}
 export const GROUP_LABELS: Record<Group, string> = {
   MANAGERS: "אחמ״שים",
   PATROL: "סיורים",

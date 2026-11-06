@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyTemplateShifts, createTemplateShifts, templateScope } from "../src/lib/templates";
+import { applyTemplateShifts, createTemplateEntries, createTemplateShifts, templateEntriesSchema, templateScope } from "../src/lib/templates";
 import { localDate, localTime, localToISO } from "../src/lib/time";
 import type { Shift } from "../src/lib/types";
 
@@ -11,6 +11,28 @@ const make = (date: string, id = date): Shift => ({
 });
 
 describe("day and week templates", () => {
+  const entry = { title: "לילה", group: "PATROL" as const, startTime: "22:00", endTime: "06:00", required: 2, days: [0, 2, 6] };
+  it("creates requirements directly on selected days, including Saturday overnight", () => {
+    const shifts = createTemplateEntries([entry], week);
+    expect(shifts.map((shift) => localDate(shift.start))).toEqual([week, "2026-11-03", "2026-11-07"]);
+    expect(localDate(shifts[2].end)).toBe("2026-11-08");
+    expect(shifts.every((shift) => shift.assignments.length === 0 && shift.required === 2)).toBe(true);
+    expect(new Set(shifts.map((shift) => shift.id)).size).toBe(3);
+  });
+  it("treats equal clock times as a full-day requirement", () => {
+    const [shift] = createTemplateEntries([{ ...entry, startTime: "08:00", endTime: "08:00", days: [0] }], week);
+    expect(localDate(shift.end)).toBe("2026-11-02");
+    expect(Date.parse(shift.end) - Date.parse(shift.start)).toBe(24 * 3600000);
+  });
+  it("rejects missing or duplicate days, invalid times, and excessive expanded requirements", () => {
+    for (const entries of [[], [{ ...entry, days: [] }], [{ ...entry, days: [0, 0] }], [{ ...entry, startTime: "25:00" }],
+      Array.from({ length: 43 }, () => ({ ...entry, days: [0, 1, 2, 3, 4, 5, 6] }))])
+      expect(templateEntriesSchema.safeParse(entries).success).toBe(false);
+  });
+  it("rejects requirements whose local times land in a daylight-saving gap", () => {
+    expect(() => createTemplateEntries([{ ...entry, startTime: "02:30", endTime: "06:00", days: [5] }], "2026-03-22"))
+      .toThrow("מעבר שעון");
+  });
   it("selects by local start day and removes personal information", () => {
     const shifts = createTemplateShifts([make(week), make("2026-11-02")], week, 0);
     expect(shifts).toHaveLength(1);
