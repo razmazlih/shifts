@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -50,6 +51,7 @@ import { api } from "@/lib/utils";
 import { Modal } from "./ui/dialog";
 import { ShiftEditor } from "./shift-editor";
 import { EmployeesPanel, SettingsPanel } from "./team-panels";
+const MonthlyReportPanel = dynamic(() => import("./monthly-report-panel").then((module) => module.MonthlyReportPanel));
 const fmtDate = (date: string, options: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat("he-IL", {
     timeZone: "Asia/Jerusalem",
@@ -69,7 +71,7 @@ export function ScheduleApp() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
-  const [view, setView] = useState<"schedule" | "employees" | "settings">(
+  const [view, setView] = useState<"schedule" | "employees" | "settings" | "monthly">(
     "schedule",
   );
   const [mine, setMine] = useState(true);
@@ -318,6 +320,7 @@ export function ScheduleApp() {
             {admin || !mine ? "לוח משמרות" : "המשמרות שלי"}
             <ChevronLeft size={15} />
           </button>
+          <button className={view === "monthly" ? "nav-item active" : "nav-item"} onClick={() => navigate("monthly")}><Clock3 size={20} />{admin ? "סיכום חודשי" : "החודש שלי"}<ChevronLeft size={15} /></button>
           {admin && (
             <>
               <button
@@ -396,6 +399,8 @@ export function ScheduleApp() {
             <strong>
               {view === "schedule"
                 ? admin ? "לוח משמרות" : "המשמרות שלי"
+                : view === "monthly"
+                  ? admin ? "סיכום חודשי" : "החודש שלי"
                 : view === "employees"
                   ? "אנשי הצוות"
                   : "הגדרות שיבוץ"}
@@ -429,7 +434,9 @@ export function ScheduleApp() {
               </button>
             </div>
           )}
-          {view === "employees" && admin ? (
+          {view === "monthly" && user ? (
+            <MonthlyReportPanel user={user} />
+          ) : view === "employees" && admin ? (
             <EmployeesPanel
               defaultMaxHours={data?.rules.defaultMaxWeeklyHours}
               onUpdated={() => reload(true)}
@@ -712,8 +719,8 @@ export function ScheduleApp() {
                       </button>
                     ))}
                   </div>
-                  {admin && (
-                    <div className="calendar-tools">
+                  <label className="schedule-employee-filter">
+                    <span>הצגה לפי עובד</span>
                       <select
                         className="employee-filter"
                         aria-label="סינון לפי עובד"
@@ -727,8 +734,20 @@ export function ScheduleApp() {
                           </option>
                         ))}
                       </select>
+                  </label>
+                </div>
+                }
+                {admin && (
+                  <section className="schedule-actions" aria-label="פעולות לניהול השבוע">
+                    <div className="schedule-actions-heading">
+                      <strong>כלים לניהול השבוע</strong>
+                      <span>השינויים נשמרים בטיוטה · הצוות יראה אותם רק לאחר פרסום</span>
+                    </div>
+                    <div className="schedule-action-grid">
+                    <div className="schedule-action-group" role="group" aria-label="בניית הסידור">
                       <button
-                        className="tool-button"
+                        className="schedule-action smart-action"
+                        aria-label="שיבוץ חכם"
                         disabled={busy || loading}
                         onClick={() =>
                           confirmMutation(
@@ -740,11 +759,10 @@ export function ScheduleApp() {
                         }
                       >
                         <Sparkles size={16} />
-                        <span>שיבוץ חכם</span>
+                        <span><strong>שיבוץ חכם</strong><small>מילוי חוסרים ותיקון בעיות</small></span>
                       </button>
-                      <span className="tool-divider" />
                       <button
-                        className="icon-button"
+                        className="schedule-action"
                         title="העתקת השבוע הקודם"
                         aria-label="העתקת השבוע הקודם"
                         disabled={busy || loading}
@@ -758,21 +776,26 @@ export function ScheduleApp() {
                           )
                         }
                       >
-                        <Copy size={16} />
+                        <Copy size={18} aria-hidden="true" />
+                        <span><strong>העתקת השבוע הקודם</strong><small>החלפת הטיוטה בסידור הקודם</small></span>
                       </button>
                       <button
-                        className="icon-button"
+                        className="schedule-action"
                         title="תבניות שבוע"
                         aria-label="תבניות שבוע"
+                        disabled={busy || loading}
                         onClick={() => openPanel("templates")}
                       >
-                        <Layers size={16} />
+                        <Layers size={18} aria-hidden="true" />
+                        <span><strong>תבניות שבוע</strong><small>שמירה וטעינה של סידור קבוע</small></span>
                       </button>
+                    </div>
+                    <div className="schedule-action-group history-actions" role="group" aria-label="שחזור ואיפוס">
                       <button
-                        className="icon-button"
+                        className="schedule-action"
                         title="ביטול השינוי האחרון"
                         aria-label="ביטול השינוי האחרון"
-                        disabled={busy || !data?.revision}
+                        disabled={busy || loading || !data?.revision}
                         onClick={() =>
                           confirmMutation(
                             "לבטל את השינוי האחרון?",
@@ -782,10 +805,11 @@ export function ScheduleApp() {
                           )
                         }
                       >
-                        <Undo2 size={16} />
+                        <Undo2 size={18} aria-hidden="true" />
+                        <span><strong>ביטול השינוי האחרון</strong><small>{data?.revision ? "חזרה לגרסה הקודמת של הטיוטה" : "אין שינוי קודם לשחזור"}</small></span>
                       </button>
                       <button
-                        className="icon-button"
+                        className="schedule-action reset-action"
                         title="איפוס כל השבוע"
                         aria-label="איפוס כל השבוע"
                         disabled={busy || loading || !data?.shifts.length}
@@ -798,12 +822,13 @@ export function ScheduleApp() {
                           )
                         }
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={18} aria-hidden="true" />
+                        <span><strong>איפוס כל השבוע</strong><small>מחיקת כל המשמרות מהטיוטה</small></span>
                       </button>
                     </div>
-                  )}
-                </div>
-                }
+                    </div>
+                  </section>
+                )}
                 {loading ? (
                   <div className="calendar-loading">
                     <LoaderCircle className="spin" />
